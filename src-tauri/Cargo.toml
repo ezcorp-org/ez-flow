@@ -56,7 +56,7 @@ windows = { version = "0.52", features = ["Win32_UI_Input_KeyboardAndMouse"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 core-graphics = "0.23"
-core-foundation = "0.9"
+core-foundation = "0.10"
 
 [features]
 default = ["custom-protocol"]
