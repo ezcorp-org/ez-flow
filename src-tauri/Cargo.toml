@@ -61,6 +61,9 @@ core-foundation = "0.9"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+# GPU acceleration
+cuda = ["whisper-rs/cuda"]
+metal = ["whisper-rs/metal"]
 
 [dev-dependencies]
 tempfile = "3"

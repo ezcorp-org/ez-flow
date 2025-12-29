@@ -43,6 +43,27 @@ pub struct Settings {
     /// Whether onboarding was skipped
     #[serde(default)]
     pub onboarding_skipped: bool,
+    /// Use GPU acceleration if available
+    #[serde(default = "default_use_gpu")]
+    pub use_gpu: bool,
+    /// Automatically check for updates
+    #[serde(default = "default_true")]
+    pub auto_check_updates: bool,
+    /// Model idle timeout in seconds (0 = never unload)
+    #[serde(default = "default_model_idle_timeout")]
+    pub model_idle_timeout_secs: u64,
+}
+
+fn default_use_gpu() -> bool {
+    true // Default to use GPU if available
+}
+
+fn default_true() -> bool {
+    true
+}
+
+fn default_model_idle_timeout() -> u64 {
+    300 // 5 minutes
 }
 
 impl Default for Settings {
@@ -63,6 +84,9 @@ impl Default for Settings {
             injection_delay_ms: 0,
             onboarding_completed: false,
             onboarding_skipped: false,
+            use_gpu: default_use_gpu(),
+            auto_check_updates: default_true(),
+            model_idle_timeout_secs: default_model_idle_timeout(),
         }
     }
 }

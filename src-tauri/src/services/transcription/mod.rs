@@ -4,10 +4,14 @@
 
 pub mod decoder;
 pub mod engine;
+pub mod gpu;
+pub mod languages;
 pub mod models;
 
 pub use decoder::decode_audio_file;
 pub use engine::WhisperEngine;
+pub use gpu::{detect_gpu_backend, is_gpu_available, GpuBackend, GpuInfo};
+pub use languages::{get_language_by_code, get_languages, is_valid_language_code, Language};
 pub use models::{
     delete_model, download_model_with_progress, get_downloaded_models, get_model,
     get_model_manifest, DownloadError, DownloadProgress, WhisperModel,
@@ -27,6 +31,9 @@ pub struct TranscriptionResult {
     pub model_id: String,
     /// Language detected or used
     pub language: Option<String>,
+    /// Whether GPU acceleration was used
+    #[serde(default)]
+    pub gpu_used: bool,
 }
 
 /// Errors that can occur during transcription
@@ -95,6 +102,7 @@ mod tests {
             duration_ms: 1000,
             model_id: "base".to_string(),
             language: Some("en".to_string()),
+            gpu_used: false,
         };
         let json = serde_json::to_string(&result).unwrap();
         assert!(json.contains("Hello world"));

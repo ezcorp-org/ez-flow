@@ -4,6 +4,9 @@
 
 use crate::models::Settings;
 use crate::services::storage::SettingsState;
+use crate::services::transcription::{
+    detect_gpu_backend, get_languages, is_gpu_available, GpuBackend, GpuInfo, Language,
+};
 use tauri::State;
 
 /// Get current settings
@@ -84,6 +87,21 @@ pub async fn update_setting(
                         settings.onboarding_skipped = v;
                     }
                 }
+                "use_gpu" => {
+                    if let Some(v) = value.as_bool() {
+                        settings.use_gpu = v;
+                    }
+                }
+                "auto_check_updates" => {
+                    if let Some(v) = value.as_bool() {
+                        settings.auto_check_updates = v;
+                    }
+                }
+                "model_idle_timeout_secs" => {
+                    if let Some(v) = value.as_u64() {
+                        settings.model_idle_timeout_secs = v;
+                    }
+                }
                 _ => {
                     tracing::warn!("Unknown setting key: {}", key);
                 }
@@ -132,6 +150,36 @@ pub async fn import_settings(
         .map_err(|e| e.to_string())?;
     tracing::info!("Settings imported from {}", path);
     Ok(imported)
+}
+
+/// Get GPU information
+#[tauri::command]
+pub fn get_gpu_info() -> GpuInfo {
+    let backend = detect_gpu_backend();
+    let available = is_gpu_available();
+    GpuInfo {
+        backend,
+        available,
+        in_use: false, // Will be updated when transcription runs
+    }
+}
+
+/// Get detected GPU backend
+#[tauri::command]
+pub fn get_gpu_backend() -> GpuBackend {
+    detect_gpu_backend()
+}
+
+/// Check if GPU acceleration is available
+#[tauri::command]
+pub fn is_gpu_available_cmd() -> bool {
+    is_gpu_available()
+}
+
+/// Get all supported languages for transcription
+#[tauri::command]
+pub fn get_supported_languages() -> Vec<Language> {
+    get_languages()
 }
 
 #[cfg(test)]

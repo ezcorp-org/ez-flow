@@ -113,6 +113,10 @@ pub fn run() {
             commands::settings::reset_settings,
             commands::settings::export_settings,
             commands::settings::import_settings,
+            commands::settings::get_gpu_info,
+            commands::settings::get_gpu_backend,
+            commands::settings::is_gpu_available_cmd,
+            commands::settings::get_supported_languages,
             // History commands
             commands::history::get_history,
             commands::history::search_history,

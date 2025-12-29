@@ -31,6 +31,8 @@ pub use models::{
     get_model_size, is_model_downloaded,
 };
 
+pub use settings::{get_gpu_backend, get_gpu_info, get_supported_languages, is_gpu_available_cmd};
+
 // Re-export hotkey state for managed state
 pub use crate::services::hotkey::HotkeyState;
 

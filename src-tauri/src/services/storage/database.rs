@@ -27,9 +27,8 @@ impl Database {
             })?;
         }
 
-        let conn = Connection::open(&path).map_err(|e| {
-            AppError::Config(format!("Failed to open database: {}", e))
-        })?;
+        let conn = Connection::open(&path)
+            .map_err(|e| AppError::Config(format!("Failed to open database: {}", e)))?;
 
         // Initialize schema
         init_schema(&conn)?;
@@ -45,13 +44,14 @@ impl Database {
     pub async fn insert_history(&self, entry: &HistoryEntry) -> Result<i64, AppError> {
         let conn = self.conn.lock().await;
         conn.execute(
-            "INSERT INTO history (text, timestamp, duration_ms, model_id, language) VALUES (?1, ?2, ?3, ?4, ?5)",
+            "INSERT INTO history (text, timestamp, duration_ms, model_id, language, gpu_used) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
             params![
                 entry.text,
                 entry.timestamp,
                 entry.duration_ms as i64,
                 entry.model_id,
                 entry.language,
+                entry.gpu_used as i32,
             ],
         )
         .map_err(|e| AppError::Config(format!("Failed to insert history: {}", e)))?;
@@ -77,7 +77,7 @@ impl Database {
         let conn = self.conn.lock().await;
         let mut stmt = conn
             .prepare(
-                "SELECT id, text, timestamp, duration_ms, model_id, language
+                "SELECT id, text, timestamp, duration_ms, model_id, language, gpu_used
                  FROM history
                  ORDER BY timestamp DESC
                  LIMIT ?1 OFFSET ?2",
@@ -93,6 +93,7 @@ impl Database {
                     duration_ms: row.get::<_, i64>(3)? as u64,
                     model_id: row.get(4)?,
                     language: row.get(5)?,
+                    gpu_used: row.get::<_, i32>(6).unwrap_or(0) != 0,
                 })
             })
             .map_err(|e| AppError::Config(format!("Failed to query history: {}", e)))?
@@ -107,7 +108,7 @@ impl Database {
         let conn = self.conn.lock().await;
         let mut stmt = conn
             .prepare(
-                "SELECT h.id, h.text, h.timestamp, h.duration_ms, h.model_id, h.language
+                "SELECT h.id, h.text, h.timestamp, h.duration_ms, h.model_id, h.language, h.gpu_used
                  FROM history h
                  JOIN history_fts fts ON h.id = fts.rowid
                  WHERE history_fts MATCH ?1
@@ -125,6 +126,7 @@ impl Database {
                     duration_ms: row.get::<_, i64>(3)? as u64,
                     model_id: row.get(4)?,
                     language: row.get(5)?,
+                    gpu_used: row.get::<_, i32>(6).unwrap_or(0) != 0,
                 })
             })
             .map_err(|e| AppError::Config(format!("Failed to search history: {}", e)))?
@@ -168,9 +170,7 @@ impl Database {
 
         // Get IDs to delete
         let mut stmt = conn
-            .prepare(
-                "SELECT id FROM history ORDER BY timestamp DESC LIMIT -1 OFFSET ?1",
-            )
+            .prepare("SELECT id FROM history ORDER BY timestamp DESC LIMIT -1 OFFSET ?1")
             .map_err(|e| AppError::Config(format!("Failed to prepare prune query: {}", e)))?;
 
         let ids_to_delete: Vec<i64> = stmt
@@ -225,6 +225,7 @@ fn init_schema(conn: &Connection) -> Result<(), AppError> {
             duration_ms INTEGER NOT NULL,
             model_id TEXT NOT NULL,
             language TEXT,
+            gpu_used INTEGER DEFAULT 0,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP
         );
 
@@ -238,6 +239,12 @@ fn init_schema(conn: &Connection) -> Result<(), AppError> {
         "#,
     )
     .map_err(|e| AppError::Config(format!("Failed to initialize database schema: {}", e)))?;
+
+    // Add gpu_used column if it doesn't exist (migration for existing databases)
+    let _ = conn.execute(
+        "ALTER TABLE history ADD COLUMN gpu_used INTEGER DEFAULT 0",
+        [],
+    );
 
     Ok(())
 }
@@ -298,6 +305,7 @@ mod tests {
             duration_ms: 1000,
             model_id: "base".to_string(),
             language: Some("en".to_string()),
+            gpu_used: true,
         };
 
         let id = db.insert_history(&entry).await.unwrap();
@@ -306,6 +314,7 @@ mod tests {
         let entries = db.get_history(10, 0).await.unwrap();
         assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].text, "Hello world");
+        assert!(entries[0].gpu_used);
     }
 
     #[tokio::test]
@@ -319,6 +328,7 @@ mod tests {
             duration_ms: 500,
             model_id: "tiny".to_string(),
             language: None,
+            gpu_used: false,
         };
 
         let id = db.insert_history(&entry).await.unwrap();
@@ -340,6 +350,7 @@ mod tests {
                 duration_ms: 1000,
                 model_id: "base".to_string(),
                 language: None,
+                gpu_used: i % 2 == 0, // Alternate GPU usage
             };
             db.insert_history(&entry).await.unwrap();
         }
@@ -364,6 +375,7 @@ mod tests {
                 duration_ms: 1000,
                 model_id: "base".to_string(),
                 language: None,
+                gpu_used: false,
             };
             db.insert_history(&entry).await.unwrap();
         }
@@ -387,6 +399,7 @@ mod tests {
             duration_ms: 1000,
             model_id: "base".to_string(),
             language: None,
+            gpu_used: true,
         };
         db.insert_history(&entry1).await.unwrap();
 
@@ -397,11 +410,13 @@ mod tests {
             duration_ms: 1000,
             model_id: "base".to_string(),
             language: None,
+            gpu_used: false,
         };
         db.insert_history(&entry2).await.unwrap();
 
         let results = db.search_history("Hello").await.unwrap();
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].text, "Hello world");
+        assert!(results[0].gpu_used);
     }
 }

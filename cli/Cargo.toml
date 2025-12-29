@@ -1,0 +1,56 @@
+[package]
+name = "ezflow"
+version = "0.1.0"
+edition = "2021"
+description = "Local speech-to-text transcription CLI"
+license = "MIT"
+repository = "https://github.com/ezflow/ez-flow"
+
+[[bin]]
+name = "ezflow"
+path = "src/main.rs"
+
+[dependencies]
+# CLI framework
+clap = { version = "4", features = ["derive"] }
+indicatif = "0.17"
+
+# Error handling
+anyhow = "1"
+thiserror = "1"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Audio processing
+whisper-rs = "0.11"
+cpal = "0.15"
+symphonia = { version = "0.5", default-features = false, features = ["mp3", "aac", "ogg", "flac", "wav", "pcm"] }
+rubato = "0.14"
+
+# Directory management
+directories = "5"
+
+# Async runtime for download
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs"] }
+reqwest = { version = "0.12", features = ["stream"] }
+futures-util = "0.3"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Terminal
+colored = "2"
+
+[features]
+default = []
+cuda = ["whisper-rs/cuda"]
+metal = ["whisper-rs/metal"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3
+strip = true

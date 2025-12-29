@@ -17,6 +17,9 @@ pub struct HistoryEntry {
     pub model_id: String,
     /// Language detected/used (if any)
     pub language: Option<String>,
+    /// Whether GPU acceleration was used
+    #[serde(default)]
+    pub gpu_used: bool,
 }
 
 impl HistoryEntry {
@@ -25,7 +28,10 @@ impl HistoryEntry {
         if self.text.len() <= max_len {
             self.text.clone()
         } else {
-            format!("{}...", &self.text.chars().take(max_len).collect::<String>())
+            format!(
+                "{}...",
+                &self.text.chars().take(max_len).collect::<String>()
+            )
         }
     }
 }
@@ -43,6 +49,7 @@ mod tests {
             duration_ms: 1000,
             model_id: "base".to_string(),
             language: None,
+            gpu_used: false,
         };
         assert_eq!(entry.preview(50), "Hello world");
     }
@@ -56,6 +63,7 @@ mod tests {
             duration_ms: 1000,
             model_id: "base".to_string(),
             language: None,
+            gpu_used: false,
         };
         let preview = entry.preview(20);
         assert!(preview.ends_with("..."));
@@ -71,11 +79,13 @@ mod tests {
             duration_ms: 1500,
             model_id: "tiny".to_string(),
             language: Some("en".to_string()),
+            gpu_used: true,
         };
         let json = serde_json::to_string(&entry).unwrap();
         let parsed: HistoryEntry = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed.id, entry.id);
         assert_eq!(parsed.text, entry.text);
         assert_eq!(parsed.language, Some("en".to_string()));
+        assert!(parsed.gpu_used);
     }
 }

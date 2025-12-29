@@ -2,6 +2,7 @@
 //!
 //! Wraps whisper-rs for local speech-to-text inference.
 
+use super::gpu::{detect_gpu_backend, GpuBackend};
 use super::{ModelError, TranscriptionError, TranscriptionResult};
 use std::path::Path;
 use std::sync::Arc;
@@ -12,14 +13,21 @@ use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextPar
 pub struct WhisperEngine {
     ctx: Option<WhisperContext>,
     model_id: String,
+    /// Current GPU backend in use
+    gpu_backend: GpuBackend,
+    /// Whether GPU is currently being used for inference
+    using_gpu: bool,
 }
 
 impl WhisperEngine {
     /// Create a new Whisper engine (no model loaded)
     pub fn new() -> Self {
+        let gpu_backend = detect_gpu_backend();
         Self {
             ctx: None,
             model_id: String::new(),
+            gpu_backend,
+            using_gpu: false,
         }
     }
 
@@ -33,35 +41,75 @@ impl WhisperEngine {
         &self.model_id
     }
 
+    /// Check if GPU is being used
+    pub fn is_using_gpu(&self) -> bool {
+        self.using_gpu
+    }
+
+    /// Get the current GPU backend
+    pub fn gpu_backend(&self) -> &GpuBackend {
+        &self.gpu_backend
+    }
+
     /// Load a Whisper model from a GGML file
     pub fn load_model(&mut self, path: &Path) -> Result<(), ModelError> {
+        self.load_model_with_gpu(path, self.gpu_backend.is_gpu())
+    }
+
+    /// Load a Whisper model with explicit GPU preference
+    pub fn load_model_with_gpu(&mut self, path: &Path, use_gpu: bool) -> Result<(), ModelError> {
         if !path.exists() {
             return Err(ModelError::NotFound(path.to_path_buf()));
         }
 
         let path_str = path.to_str().ok_or(ModelError::InvalidPath)?;
 
-        tracing::info!("Loading Whisper model from: {}", path_str);
+        tracing::info!(
+            "Loading Whisper model from: {} (GPU: {})",
+            path_str,
+            use_gpu
+        );
 
-        let params = WhisperContextParameters::default();
-        let ctx = WhisperContext::new_with_params(path_str, params)
-            .map_err(|e| ModelError::LoadFailed(e.to_string()))?;
+        let mut params = WhisperContextParameters::default();
 
-        self.ctx = Some(ctx);
-        self.model_id = path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("unknown")
-            .to_string();
+        // Enable GPU if requested and available
+        #[cfg(any(feature = "cuda", feature = "metal"))]
+        if use_gpu && self.gpu_backend.is_gpu() {
+            params = params.use_gpu(true);
+            tracing::info!("GPU acceleration enabled: {:?}", self.gpu_backend);
+        }
 
-        tracing::info!("Whisper model loaded: {}", self.model_id);
-        Ok(())
+        match WhisperContext::new_with_params(path_str, params) {
+            Ok(ctx) => {
+                self.ctx = Some(ctx);
+                self.using_gpu = use_gpu && self.gpu_backend.is_gpu();
+                self.model_id = path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("unknown")
+                    .to_string();
+
+                tracing::info!(
+                    "Whisper model loaded: {} (GPU: {})",
+                    self.model_id,
+                    self.using_gpu
+                );
+                Ok(())
+            }
+            Err(e) if use_gpu => {
+                // GPU initialization failed, fall back to CPU
+                tracing::warn!("GPU initialization failed, falling back to CPU: {}", e);
+                self.load_model_with_gpu(path, false)
+            }
+            Err(e) => Err(ModelError::LoadFailed(e.to_string())),
+        }
     }
 
     /// Unload the current model
     pub fn unload_model(&mut self) {
         self.ctx = None;
         self.model_id.clear();
+        self.using_gpu = false;
         tracing::info!("Whisper model unloaded");
     }
 
@@ -75,11 +123,15 @@ impl WhisperEngine {
             ));
         }
 
+        let audio_duration_secs = audio.len() as f32 / 16000.0;
         tracing::debug!(
-            "Transcribing {} samples ({:.2}s)",
+            "Transcribing {} samples ({:.2}s) with {} backend",
             audio.len(),
-            audio.len() as f32 / 16000.0
+            audio_duration_secs,
+            self.gpu_backend.name()
         );
+
+        let start_time = std::time::Instant::now();
 
         // Configure transcription parameters
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
@@ -97,6 +149,8 @@ impl WhisperEngine {
         state
             .full(params, audio)
             .map_err(|e| TranscriptionError::InferenceFailed(e.to_string()))?;
+
+        let inference_duration = start_time.elapsed();
 
         // Collect results
         let num_segments = state
@@ -117,10 +171,17 @@ impl WhisperEngine {
 
         let duration_ms = (audio.len() as f32 / 16.0) as u64;
 
+        // Calculate real-time factor (RTF) - lower is better
+        // RTF < 1 means faster than real-time
+        let rtf = inference_duration.as_secs_f32() / audio_duration_secs;
+
         tracing::info!(
-            "Transcription complete: {} chars, language: {:?}",
+            "Transcription complete: {} chars in {:.2}s ({:.2}x real-time), backend: {}, GPU: {}",
             text.len(),
-            language
+            inference_duration.as_secs_f32(),
+            rtf,
+            self.gpu_backend.name(),
+            self.using_gpu
         );
 
         Ok(TranscriptionResult {
@@ -128,6 +189,7 @@ impl WhisperEngine {
             duration_ms,
             model_id: self.model_id.clone(),
             language,
+            gpu_used: self.using_gpu,
         })
     }
 }

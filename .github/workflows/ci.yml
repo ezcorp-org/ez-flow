@@ -103,14 +103,37 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # Standard CPU builds
           - platform: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+            features: ""
+            gpu: cpu
           - platform: macos-latest
             target: aarch64-apple-darwin
+            features: ""
+            gpu: cpu
           - platform: macos-latest
             target: x86_64-apple-darwin
+            features: ""
+            gpu: cpu
           - platform: windows-latest
             target: x86_64-pc-windows-msvc
+            features: ""
+            gpu: cpu
+          # Metal build for Apple Silicon
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            features: metal
+            gpu: metal
+          # CUDA builds for Linux and Windows
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            features: cuda
+            gpu: cuda
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            features: cuda
+            gpu: cuda
 
     runs-on: ${{ matrix.platform }}
     steps:
@@ -139,6 +162,20 @@ jobs:
             patchelf \
             libasound2-dev
 
+      - name: Install CUDA Toolkit (Linux)
+        if: matrix.gpu == 'cuda' && matrix.platform == 'ubuntu-22.04'
+        uses: Jimver/cuda-toolkit@v0.2.15
+        with:
+          cuda: '12.3.0'
+          method: 'network'
+
+      - name: Install CUDA Toolkit (Windows)
+        if: matrix.gpu == 'cuda' && matrix.platform == 'windows-latest'
+        uses: Jimver/cuda-toolkit@v0.2.15
+        with:
+          cuda: '12.3.0'
+          method: 'network'
+
       - name: Cache Cargo
         uses: actions/cache@v4
         with:
@@ -148,16 +185,26 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             src-tauri/target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.gpu }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
+            ${{ runner.os }}-${{ matrix.gpu }}-cargo-
             ${{ runner.os }}-cargo-
 
       - name: Install frontend dependencies
         run: bun install
 
-      - name: Build Tauri app
+      - name: Build Tauri app (CPU)
+        if: matrix.features == ''
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           args: --target ${{ matrix.target }}
+
+      - name: Build Tauri app (GPU)
+        if: matrix.features != ''
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target ${{ matrix.target }} --features ${{ matrix.features }}
