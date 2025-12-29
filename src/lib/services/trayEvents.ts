@@ -13,11 +13,10 @@ let isRecording = false;
 const unlisteners: UnlistenFn[] = [];
 
 /**
- * Start recording audio
+ * Start recording audio (legacy - now handled directly in Rust)
  */
 async function startRecording() {
   if (isRecording) {
-    console.log('Already recording');
     return;
   }
 
@@ -25,7 +24,6 @@ async function startRecording() {
     await invoke('start_recording');
     isRecording = true;
     await invoke('show_recording_indicator');
-    console.log('Recording started from tray');
   } catch (error) {
     console.error('Failed to start recording:', error);
   }
@@ -99,31 +97,42 @@ async function transcribeFile() {
  * Initialize tray event listeners
  */
 export async function initTrayEventListeners(): Promise<void> {
-  // Listen for start recording event
+  // Listen for transcription complete event (from Rust tray handler)
   unlisteners.push(
-    await listen('tray://start-recording', () => {
-      console.log('Received tray://start-recording event');
-      startRecording();
+    await listen<string>('tray://transcription-complete', async (event) => {
+      try {
+        await writeText(event.payload);
+      } catch (error) {
+        console.error('Failed to copy transcription to clipboard:', error);
+      }
     })
   );
 
-  // Listen for stop recording event
+  // Listen for transcription error event
   unlisteners.push(
-    await listen('tray://stop-recording', () => {
-      console.log('Received tray://stop-recording event');
-      stopRecording();
+    await listen<string>('tray://transcription-error', (event) => {
+      console.error('Transcription error:', event.payload);
     })
   );
 
-  // Listen for transcribe file event
+  // Listen for recording started event (to show indicator)
+  unlisteners.push(
+    await listen('tray://recording-started', async () => {
+      isRecording = true;
+      try {
+        await invoke('show_recording_indicator');
+      } catch (error) {
+        console.error('Failed to show indicator:', error);
+      }
+    })
+  );
+
+  // Listen for transcribe file event (file picker must be done from JS)
   unlisteners.push(
     await listen('tray://transcribe-file', () => {
-      console.log('Received tray://transcribe-file event');
       transcribeFile();
     })
   );
-
-  console.log('Tray event listeners initialized');
 }
 
 /**

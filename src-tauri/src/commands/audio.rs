@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use tauri::State;
 
 /// Commands for the audio thread
-enum AudioCommand {
+pub enum AudioCommand {
     Start,
     Stop,
     IsRecording,
@@ -25,7 +25,7 @@ enum AudioCommand {
 }
 
 /// Responses from the audio thread
-enum AudioResponse {
+pub enum AudioResponse {
     Ok,
     Buffer(Result<AudioBuffer, String>),
     Bool(bool),
@@ -127,7 +127,8 @@ impl AudioState {
         Ok(())
     }
 
-    fn send_command(&self, cmd: AudioCommand) -> Result<AudioResponse, String> {
+    /// Send a command to the audio thread and wait for response
+    pub fn send_command(&self, cmd: AudioCommand) -> Result<AudioResponse, String> {
         self.ensure_initialized()?;
 
         let cmd_tx = self.cmd_tx.lock().map_err(|e| e.to_string())?;

@@ -2,6 +2,9 @@
 //!
 //! Handles system tray icon, menu, and events for EZ Flow.
 
+use crate::commands::audio::{AudioCommand, AudioResponse, AudioState};
+use crate::commands::TranscriptionState;
+use crate::services::audio::processing::resample_for_whisper;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
@@ -145,16 +148,90 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
 
 /// Start recording from tray menu
 fn start_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
-    // Emit event - the main window or a listener will handle starting the recording
-    let _ = app.emit("tray://start-recording", ());
-    tracing::info!("Emitted start recording event");
+    tracing::info!("Starting recording from tray menu");
+
+    // Get the AudioState from the app
+    let audio_state = app.state::<AudioState>();
+
+    // Start recording directly
+    match audio_state.send_command(AudioCommand::Start) {
+        Ok(AudioResponse::Ok) => {
+            tracing::info!("Recording started successfully from tray");
+            // Emit event so UI can update (e.g., show indicator)
+            let _ = app.emit("tray://recording-started", ());
+        }
+        Ok(AudioResponse::Error(e)) => {
+            tracing::error!("Failed to start recording from tray: {}", e);
+        }
+        Ok(_) => {
+            tracing::error!("Unexpected response when starting recording");
+        }
+        Err(e) => {
+            tracing::error!("Error starting recording from tray: {}", e);
+        }
+    }
 }
 
 /// Stop recording and transcribe from tray menu
 fn stop_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
-    // Emit event - the main window or a listener will handle stopping and transcribing
-    let _ = app.emit("tray://stop-recording", ());
-    tracing::info!("Emitted stop recording event");
+    tracing::info!("Stopping recording and transcribing from tray menu");
+
+    let audio_state = app.state::<AudioState>();
+    let transcription_state = app.state::<TranscriptionState>();
+    let app_handle = app.clone();
+
+    // Stop recording
+    let buffer = match audio_state.send_command(AudioCommand::Stop) {
+        Ok(AudioResponse::Buffer(Ok(buf))) => buf,
+        Ok(AudioResponse::Buffer(Err(e))) => {
+            tracing::error!("Failed to stop recording: {}", e);
+            let _ = app_handle.emit("tray://transcription-error", e);
+            return;
+        }
+        Ok(_) => {
+            tracing::error!("Unexpected response when stopping recording");
+            return;
+        }
+        Err(e) => {
+            tracing::error!("Error stopping recording: {}", e);
+            let _ = app_handle.emit("tray://transcription-error", e);
+            return;
+        }
+    };
+
+    if buffer.samples.is_empty() {
+        tracing::warn!("No audio recorded");
+        let _ = app_handle.emit("tray://transcription-error", "No audio recorded");
+        return;
+    }
+
+    // Resample to 16kHz for Whisper
+    let samples = match resample_for_whisper(buffer) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("Failed to resample audio: {}", e);
+            let _ = app_handle.emit("tray://transcription-error", e.to_string());
+            return;
+        }
+    };
+
+    // Clone the engine for the async task
+    let engine = transcription_state.engine.clone();
+
+    // Spawn async task for transcription
+    tauri::async_runtime::spawn(async move {
+        tracing::info!("Starting transcription...");
+        match engine.transcribe(samples).await {
+            Ok(result) => {
+                tracing::info!("Transcription complete: {} chars", result.text.len());
+                let _ = app_handle.emit("tray://transcription-complete", &result.text);
+            }
+            Err(e) => {
+                tracing::error!("Transcription failed: {}", e);
+                let _ = app_handle.emit("tray://transcription-error", e.to_string());
+            }
+        }
+    });
 }
 
 /// Open file dialog and transcribe selected file
