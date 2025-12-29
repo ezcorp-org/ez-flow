@@ -10,6 +10,7 @@ use tauri::{
     tray::TrayIconBuilder,
     AppHandle, Emitter, Manager, Runtime,
 };
+use tauri_plugin_dialog::{DialogExt, FileDialogBuilder};
 
 /// Menu item IDs
 pub mod menu_ids {
@@ -236,9 +237,54 @@ fn stop_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
 
 /// Open file dialog and transcribe selected file
 fn transcribe_file_from_tray<R: Runtime>(app: &AppHandle<R>) {
-    // Emit event - the main window will open a file picker and handle transcription
-    let _ = app.emit("tray://transcribe-file", ());
-    tracing::info!("Emitted transcribe file event");
+    tracing::info!("Opening file dialog for transcription");
+
+    let app_handle = app.clone();
+
+    // Open file dialog
+    app.dialog()
+        .file()
+        .add_filter("Audio Files", &["wav", "mp3", "m4a", "ogg", "flac", "webm"])
+        .pick_file(move |file_path| {
+            let Some(path) = file_path else {
+                tracing::info!("No file selected");
+                return;
+            };
+
+            let path_str = path.to_string();
+            tracing::info!("Selected file for transcription: {}", path_str);
+
+            let transcription_state = app_handle.state::<TranscriptionState>();
+            let engine = transcription_state.engine.clone();
+            let app_for_emit = app_handle.clone();
+
+            // Spawn async task for transcription
+            tauri::async_runtime::spawn(async move {
+                tracing::info!("Loading audio file: {}", path_str);
+
+                // Read and decode the audio file
+                match crate::services::transcription::decoder::decode_audio_file(std::path::Path::new(&path_str)) {
+                    Ok(samples) => {
+                        tracing::info!("Audio file decoded, {} samples", samples.len());
+
+                        match engine.transcribe(samples).await {
+                            Ok(result) => {
+                                tracing::info!("File transcription complete: {} chars", result.text.len());
+                                let _ = app_for_emit.emit("tray://transcription-complete", &result.text);
+                            }
+                            Err(e) => {
+                                tracing::error!("File transcription failed: {}", e);
+                                let _ = app_for_emit.emit("tray://transcription-error", e.to_string());
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to decode audio file: {}", e);
+                        let _ = app_for_emit.emit("tray://transcription-error", e.to_string());
+                    }
+                }
+            });
+        });
 }
 
 /// Show a window by label
