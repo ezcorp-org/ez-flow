@@ -11,6 +11,7 @@ use crate::services::audio::{
     AudioError, PermissionStatus, RecordingResult,
 };
 use crate::services::audio::processing::AudioBuffer;
+use crate::services::storage::SettingsState;
 use crate::services::transcription::TranscriptionResult;
 use std::time::{Duration, Instant};
 use tauri::State;
@@ -260,6 +261,7 @@ pub async fn get_recording_duration(state: State<'_, AudioState>) -> Result<f32,
 pub async fn stop_recording_and_transcribe(
     audio_state: State<'_, AudioState>,
     transcription_state: State<'_, TranscriptionState>,
+    settings_state: State<'_, SettingsState>,
 ) -> Result<TranscriptionResult, String> {
     let start = Instant::now();
 
@@ -281,10 +283,13 @@ pub async fn stop_recording_and_transcribe(
     // Resample to 16kHz for Whisper if needed
     let samples = resample_for_whisper(buffer).map_err(|e| e.to_string())?;
 
-    // Transcribe
+    // Get model_id from settings for auto-loading
+    let model_id = settings_state.get().await.model_id.clone();
+
+    // Transcribe with auto-load fallback
     let result = transcription_state
         .engine
-        .transcribe(samples)
+        .transcribe_with_auto_load(samples, &model_id)
         .await
         .map_err(|e| e.to_string())?;
 

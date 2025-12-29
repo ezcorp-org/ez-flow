@@ -4,6 +4,7 @@
 
 use crate::commands::{AudioState, TranscriptionState};
 use crate::services::platform::TextInjectorState;
+use crate::services::storage::SettingsState;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
@@ -76,6 +77,7 @@ pub async fn push_to_talk_complete(
     audio_state: State<'_, AudioState>,
     transcription_state: State<'_, TranscriptionState>,
     text_injector_state: State<'_, TextInjectorState>,
+    settings_state: State<'_, SettingsState>,
 ) -> Result<PushToTalkResult, String> {
     let start = Instant::now();
 
@@ -88,11 +90,12 @@ pub async fn push_to_talk_complete(
     tracing::info!("Starting push-to-talk completion flow");
     let _ = app.emit("workflow://state-changed", "transcribing");
 
-    // Stop recording and transcribe
+    // Stop recording and transcribe (with auto-load fallback)
     let transcribe_start = Instant::now();
     let transcription_result = match crate::commands::audio::stop_recording_and_transcribe(
         audio_state.clone(),
         transcription_state.clone(),
+        settings_state.clone(),
     )
     .await
     {
