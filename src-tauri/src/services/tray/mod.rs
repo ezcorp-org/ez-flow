@@ -5,7 +5,7 @@
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Runtime,
+    AppHandle, Emitter, Manager, Runtime,
 };
 
 /// Menu item IDs
@@ -126,16 +126,15 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
         }
         menu_ids::HISTORY => {
             tracing::info!("History requested from tray menu");
-            // Emit event for frontend to open history window
-            let _ = app.emit("tray://open-history", ());
+            show_window(app, "history");
         }
         menu_ids::SETTINGS => {
             tracing::info!("Settings requested from tray menu");
-            // Emit event for frontend to open settings window
-            let _ = app.emit("tray://open-settings", ());
+            show_window(app, "settings");
         }
         menu_ids::ABOUT => {
-            show_about_dialog(app);
+            tracing::info!("About requested from tray menu");
+            show_window(app, "main");
         }
         menu_ids::QUIT => {
             tracing::info!("Quit requested from tray menu");
@@ -147,11 +146,19 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
     }
 }
 
-/// Show the about dialog
-fn show_about_dialog<R: Runtime>(_app: &AppHandle<R>) {
-    tracing::info!("Showing about dialog");
-    // TODO: Implement about dialog/window in a future story
-    // For now, just log
+/// Show a window by label
+fn show_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    if let Some(window) = app.get_webview_window(label) {
+        // Show and focus the window
+        if let Err(e) = window.show() {
+            tracing::error!("Failed to show {} window: {}", label, e);
+        }
+        if let Err(e) = window.set_focus() {
+            tracing::error!("Failed to focus {} window: {}", label, e);
+        }
+    } else {
+        tracing::error!("Window '{}' not found", label);
+    }
 }
 
 /// Clean up resources and exit the application
