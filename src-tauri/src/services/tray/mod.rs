@@ -8,9 +8,10 @@ use crate::services::audio::processing::resample_for_whisper;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, Runtime,
+    AppHandle, Emitter, Manager,
 };
-use tauri_plugin_dialog::{DialogExt, FileDialogBuilder};
+use tauri_plugin_clipboard_manager::ClipboardExt;
+use tauri_plugin_dialog::DialogExt;
 
 /// Menu item IDs
 pub mod menu_ids {
@@ -23,8 +24,14 @@ pub mod menu_ids {
     pub const QUIT: &str = "quit";
 }
 
+/// State for tray menu items that need to be toggled
+pub struct TrayMenuState {
+    pub start_recording: MenuItem<tauri::Wry>,
+    pub stop_recording: MenuItem<tauri::Wry>,
+}
+
 /// Set up the system tray icon and menu
-pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn setup_tray(app: &AppHandle<tauri::Wry>) -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("Setting up system tray");
 
     // Create recording control menu items
@@ -70,6 +77,13 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
     let about = MenuItem::with_id(app, menu_ids::ABOUT, "About EZ Flow", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, menu_ids::QUIT, "Quit", true, None::<&str>)?;
 
+    // Store menu items in app state for later access
+    let menu_state = TrayMenuState {
+        start_recording: start_recording.clone(),
+        stop_recording: stop_recording.clone(),
+    };
+    app.manage(menu_state);
+
     // Build menu with separators
     let menu = Menu::with_items(
         app,
@@ -109,7 +123,7 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
 }
 
 /// Handle tray menu events
-fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
+fn handle_menu_event(app: &AppHandle<tauri::Wry>, menu_id: &str) {
     tracing::debug!("Tray menu event: {}", menu_id);
 
     match menu_id {
@@ -147,8 +161,26 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
     }
 }
 
+/// Update tray menu items for recording state
+fn update_menu_for_recording(app: &AppHandle<tauri::Wry>, is_recording: bool) {
+    // Get menu items from state and update their enabled state
+    let menu_state = app.state::<TrayMenuState>();
+
+    // Toggle Start Recording (enabled when NOT recording)
+    if let Err(e) = menu_state.start_recording.set_enabled(!is_recording) {
+        tracing::error!("Failed to update start_recording menu state: {}", e);
+    }
+
+    // Toggle Stop Recording (enabled when recording)
+    if let Err(e) = menu_state.stop_recording.set_enabled(is_recording) {
+        tracing::error!("Failed to update stop_recording menu state: {}", e);
+    }
+
+    tracing::debug!("Menu state updated: is_recording={}", is_recording);
+}
+
 /// Start recording from tray menu
-fn start_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
+fn start_recording_from_tray(app: &AppHandle<tauri::Wry>) {
     tracing::info!("Starting recording from tray menu");
 
     // Get the AudioState from the app
@@ -158,6 +190,8 @@ fn start_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
     match audio_state.send_command(AudioCommand::Start) {
         Ok(AudioResponse::Ok) => {
             tracing::info!("Recording started successfully from tray");
+            // Update menu items
+            update_menu_for_recording(app, true);
             // Emit event so UI can update (e.g., show indicator)
             let _ = app.emit("tray://recording-started", ());
         }
@@ -174,12 +208,15 @@ fn start_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Stop recording and transcribe from tray menu
-fn stop_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
+fn stop_recording_from_tray(app: &AppHandle<tauri::Wry>) {
     tracing::info!("Stopping recording and transcribing from tray menu");
 
     let audio_state = app.state::<AudioState>();
     let transcription_state = app.state::<TranscriptionState>();
     let app_handle = app.clone();
+
+    // Reset menu state immediately
+    update_menu_for_recording(app, false);
 
     // Stop recording
     let buffer = match audio_state.send_command(AudioCommand::Stop) {
@@ -225,6 +262,16 @@ fn stop_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
         match engine.transcribe(samples).await {
             Ok(result) => {
                 tracing::info!("Transcription complete: {} chars", result.text.len());
+
+                // Copy to clipboard directly in Rust
+                if !result.text.is_empty() {
+                    if let Err(e) = app_handle.clipboard().write_text(&result.text) {
+                        tracing::error!("Failed to copy to clipboard: {}", e);
+                    } else {
+                        tracing::info!("Transcription copied to clipboard");
+                    }
+                }
+
                 let _ = app_handle.emit("tray://transcription-complete", &result.text);
             }
             Err(e) => {
@@ -236,7 +283,7 @@ fn stop_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Open file dialog and transcribe selected file
-fn transcribe_file_from_tray<R: Runtime>(app: &AppHandle<R>) {
+fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
     tracing::info!("Opening file dialog for transcription");
 
     let app_handle = app.clone();
@@ -270,6 +317,16 @@ fn transcribe_file_from_tray<R: Runtime>(app: &AppHandle<R>) {
                         match engine.transcribe(samples).await {
                             Ok(result) => {
                                 tracing::info!("File transcription complete: {} chars", result.text.len());
+
+                                // Copy to clipboard directly in Rust
+                                if !result.text.is_empty() {
+                                    if let Err(e) = app_for_emit.clipboard().write_text(&result.text) {
+                                        tracing::error!("Failed to copy to clipboard: {}", e);
+                                    } else {
+                                        tracing::info!("Transcription copied to clipboard");
+                                    }
+                                }
+
                                 let _ = app_for_emit.emit("tray://transcription-complete", &result.text);
                             }
                             Err(e) => {
@@ -288,7 +345,7 @@ fn transcribe_file_from_tray<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Show a window by label
-fn show_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
+fn show_window(app: &AppHandle<tauri::Wry>, label: &str) {
     if let Some(window) = app.get_webview_window(label) {
         // Show and focus the window
         if let Err(e) = window.show() {
@@ -303,7 +360,7 @@ fn show_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
 }
 
 /// Clean up resources and exit the application
-fn cleanup_and_exit<R: Runtime>(app: &AppHandle<R>) {
+fn cleanup_and_exit(app: &AppHandle<tauri::Wry>) {
     tracing::info!("Performing clean shutdown");
 
     // Log shutdown
