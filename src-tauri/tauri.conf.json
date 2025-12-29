@@ -84,6 +84,8 @@
       "icons/icon.ico"
     ],
     "category": "Productivity",
+    "publisher": "EZ Flow",
+    "copyright": "Copyright 2024 EZ Flow",
     "shortDescription": "Local speech-to-text transcription",
     "longDescription": "EZ Flow is a local speech-to-text application that transcribes your voice without sending data to the cloud.",
     "macOS": {
@@ -97,7 +99,13 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": ""
+      "timestampUrl": "http://timestamp.digicert.com",
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": ["English"],
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
     },
     "linux": {
       "deb": {
@@ -105,6 +113,16 @@
           "libwebkit2gtk-4.1-0",
           "libgtk-3-0",
           "libasound2"
+        ]
+      },
+      "appimage": {
+        "bundleMediaFramework": false
+      },
+      "rpm": {
+        "depends": [
+          "webkit2gtk4.1",
+          "gtk3",
+          "alsa-lib"
         ]
       }
     }
@@ -114,8 +132,13 @@
       "open": true
     },
     "updater": {
-      "endpoints": [],
-      "pubkey": ""
+      "endpoints": [
+        "https://github.com/ezflow/ez-flow/releases/latest/download/latest.json"
+      ],
+      "pubkey": "",
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

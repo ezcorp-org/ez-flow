@@ -1,0 +1,227 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create-release.outputs.result }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create-release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const tag = context.ref.replace('refs/tags/', '') || 'v${{ inputs.version }}';
+            const version = tag.replace('v', '');
+
+            const { data } = await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tag,
+              name: `EZ Flow ${tag}`,
+              body: 'See the changelog for details.',
+              draft: true,
+              prerelease: false
+            });
+
+            return data.id;
+
+  build:
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CPU builds
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            features: ""
+            artifact_suffix: linux-x64
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            features: ""
+            artifact_suffix: macos-arm64
+          - platform: macos-latest
+            target: x86_64-apple-darwin
+            features: ""
+            artifact_suffix: macos-x64
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            features: ""
+            artifact_suffix: windows-x64
+          # GPU builds
+          - platform: macos-latest
+            target: aarch64-apple-darwin
+            features: metal
+            artifact_suffix: macos-arm64-metal
+          - platform: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            features: cuda
+            artifact_suffix: linux-x64-cuda
+          - platform: windows-latest
+            target: x86_64-pc-windows-msvc
+            features: cuda
+            artifact_suffix: windows-x64-cuda
+
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-action@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libgtk-3-dev \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libasound2-dev
+
+      - name: Install CUDA Toolkit
+        if: contains(matrix.features, 'cuda')
+        uses: Jimver/cuda-toolkit@v0.2.15
+        with:
+          cuda: '12.3.0'
+          method: 'network'
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --target ${{ matrix.target }} ${{ matrix.features && format('--features {0}', matrix.features) || '' }}
+
+  publish-release:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish Release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        with:
+          script: |
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: process.env.RELEASE_ID,
+              draft: false,
+            });
+
+  generate-update-manifest:
+    needs: [create-release, build, publish-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate latest.json
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        with:
+          script: |
+            const release = await github.rest.repos.getRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: process.env.RELEASE_ID,
+            });
+
+            const version = release.data.tag_name.replace('v', '');
+
+            const platforms = {};
+            for (const asset of release.data.assets) {
+              const name = asset.name.toLowerCase();
+
+              if (name.includes('.sig')) {
+                continue; // Skip signature files
+              }
+
+              let platform = null;
+              if (name.includes('darwin') || name.includes('macos')) {
+                if (name.includes('aarch64') || name.includes('arm64')) {
+                  platform = 'darwin-aarch64';
+                } else {
+                  platform = 'darwin-x86_64';
+                }
+              } else if (name.includes('linux')) {
+                platform = 'linux-x86_64';
+              } else if (name.includes('windows') || name.includes('.msi') || name.includes('.exe')) {
+                platform = 'windows-x86_64';
+              }
+
+              if (platform && !platforms[platform]) {
+                // Find corresponding signature
+                const sigAsset = release.data.assets.find(a =>
+                  a.name === asset.name + '.sig'
+                );
+
+                platforms[platform] = {
+                  url: asset.browser_download_url,
+                  signature: sigAsset ? sigAsset.browser_download_url : '',
+                };
+              }
+            }
+
+            const manifest = {
+              version,
+              notes: release.data.body || '',
+              pub_date: release.data.published_at,
+              platforms,
+            };
+
+            const fs = require('fs');
+            fs.writeFileSync('latest.json', JSON.stringify(manifest, null, 2));
+
+      - name: Upload latest.json to release
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ needs.create-release.outputs.release_id }}
+        with:
+          script: |
+            const fs = require('fs');
+            const content = fs.readFileSync('latest.json');
+
+            await github.rest.repos.uploadReleaseAsset({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: process.env.RELEASE_ID,
+              name: 'latest.json',
+              data: content,
+            });
