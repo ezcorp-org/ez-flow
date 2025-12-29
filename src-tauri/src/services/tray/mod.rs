@@ -111,18 +111,15 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
     match menu_id {
         menu_ids::START_RECORDING => {
             tracing::info!("Start recording requested from tray menu");
-            // Recording is handled via Tauri commands, emit event for frontend
-            let _ = app.emit("tray://start-recording", ());
+            start_recording_from_tray(app);
         }
         menu_ids::STOP_RECORDING => {
             tracing::info!("Stop recording requested from tray menu");
-            // Recording is handled via Tauri commands, emit event for frontend
-            let _ = app.emit("tray://stop-recording", ());
+            stop_recording_from_tray(app);
         }
         menu_ids::TRANSCRIBE_FILE => {
             tracing::info!("Transcribe file requested from tray menu");
-            // Emit event for frontend to open file picker
-            let _ = app.emit("tray://transcribe-file", ());
+            transcribe_file_from_tray(app);
         }
         menu_ids::HISTORY => {
             tracing::info!("History requested from tray menu");
@@ -144,6 +141,27 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
             tracing::warn!("Unknown menu event: {}", menu_id);
         }
     }
+}
+
+/// Start recording from tray menu
+fn start_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
+    // Emit event - the main window or a listener will handle starting the recording
+    let _ = app.emit("tray://start-recording", ());
+    tracing::info!("Emitted start recording event");
+}
+
+/// Stop recording and transcribe from tray menu
+fn stop_recording_from_tray<R: Runtime>(app: &AppHandle<R>) {
+    // Emit event - the main window or a listener will handle stopping and transcribing
+    let _ = app.emit("tray://stop-recording", ());
+    tracing::info!("Emitted stop recording event");
+}
+
+/// Open file dialog and transcribe selected file
+fn transcribe_file_from_tray<R: Runtime>(app: &AppHandle<R>) {
+    // Emit event - the main window will open a file picker and handle transcription
+    let _ = app.emit("tray://transcribe-file", ());
+    tracing::info!("Emitted transcribe file event");
 }
 
 /// Show a window by label

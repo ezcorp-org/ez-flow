@@ -1,11 +1,22 @@
 import './app.css';
 import { mount } from 'svelte';
+import { initTrayEventListeners } from './lib/services/trayEvents';
 
 // Simple path-based routing for Tauri windows
 const path = window.location.pathname;
 
 async function init() {
   const target = document.getElementById('app')!;
+
+  // Initialize tray event listeners for all windows (they share the same Tauri context)
+  // Only initialize for main window to avoid duplicate handlers
+  if (path === '/' || path === '') {
+    try {
+      await initTrayEventListeners();
+    } catch (e) {
+      console.error('Failed to init tray listeners:', e);
+    }
+  }
 
   if (path === '/settings' || path === '/settings/') {
     const { default: Settings } = await import('./routes/settings/+page.svelte');
