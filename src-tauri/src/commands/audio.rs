@@ -2,11 +2,14 @@
 //!
 //! Provides commands for audio capture and device management.
 
+use crate::commands::TranscriptionState;
 use crate::services::audio::{
     capture::save_to_temp_wav, processing::resample_for_whisper, AudioCaptureService, AudioDevice,
     AudioError, PermissionStatus, RecordingResult,
 };
+use crate::services::transcription::TranscriptionResult;
 use std::sync::Arc;
+use std::time::Instant;
 use tauri::State;
 use tokio::sync::Mutex;
 
@@ -137,4 +140,67 @@ pub async fn get_recording_duration(state: State<'_, AudioState>) -> f32 {
         .as_ref()
         .map(|s| s.recording_duration().as_secs_f32())
         .unwrap_or(0.0)
+}
+
+/// Stop recording and immediately transcribe the audio
+#[tauri::command]
+pub async fn stop_recording_and_transcribe(
+    audio_state: State<'_, AudioState>,
+    transcription_state: State<'_, TranscriptionState>,
+) -> Result<TranscriptionResult, String> {
+    let start = Instant::now();
+
+    tracing::info!("Stopping recording and transcribing");
+
+    // Stop recording
+    let mut service_guard = audio_state.service.lock().await;
+    let mut service = service_guard
+        .take()
+        .ok_or_else(|| "No recording in progress".to_string())?;
+
+    if !service.is_recording() {
+        *service_guard = Some(service);
+        return Err("No recording in progress".to_string());
+    }
+
+    let buffer = service.stop().map_err(|e| e.to_string())?;
+
+    if buffer.samples.is_empty() {
+        *service_guard = Some(service);
+        return Err("No audio recorded".to_string());
+    }
+
+    let audio_duration_secs = buffer.samples.len() as f32 / buffer.sample_rate as f32;
+
+    // Resample to 16kHz for Whisper if needed
+    let samples = resample_for_whisper(buffer).map_err(|e| e.to_string())?;
+
+    // Keep service for reuse
+    *service_guard = Some(service);
+    drop(service_guard);
+
+    // Transcribe
+    let result = transcription_state
+        .engine
+        .transcribe(samples)
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let transcription_time_ms = start.elapsed().as_millis() as u64;
+    let realtime_factor = if audio_duration_secs > 0.0 {
+        transcription_time_ms as f32 / (audio_duration_secs * 1000.0)
+    } else {
+        0.0
+    };
+
+    tracing::info!(
+        audio_duration_secs = audio_duration_secs,
+        transcription_time_ms = transcription_time_ms,
+        realtime_factor = realtime_factor,
+        model = %result.model_id,
+        text_length = result.text.len(),
+        "Transcription completed"
+    );
+
+    Ok(result)
 }

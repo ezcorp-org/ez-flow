@@ -12,6 +12,7 @@ use tauri::{
 pub mod menu_ids {
     pub const START_RECORDING: &str = "start_recording";
     pub const STOP_RECORDING: &str = "stop_recording";
+    pub const TRANSCRIBE_FILE: &str = "transcribe_file";
     pub const ABOUT: &str = "about";
     pub const QUIT: &str = "quit";
 }
@@ -35,6 +36,13 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
         false, // Initially disabled
         None::<&str>,
     )?;
+    let transcribe_file = MenuItem::with_id(
+        app,
+        menu_ids::TRANSCRIBE_FILE,
+        "Transcribe File...",
+        true,
+        None::<&str>,
+    )?;
 
     // Create other menu items
     let about = MenuItem::with_id(app, menu_ids::ABOUT, "About EZ Flow", true, None::<&str>)?;
@@ -46,6 +54,7 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
         &[
             &start_recording,
             &stop_recording,
+            &transcribe_file,
             &PredefinedMenuItem::separator(app)?,
             &about,
             &PredefinedMenuItem::separator(app)?,
@@ -89,6 +98,11 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
             // Recording is handled via Tauri commands, emit event for frontend
             let _ = app.emit("tray://stop-recording", ());
         }
+        menu_ids::TRANSCRIBE_FILE => {
+            tracing::info!("Transcribe file requested from tray menu");
+            // Emit event for frontend to open file picker
+            let _ = app.emit("tray://transcribe-file", ());
+        }
         menu_ids::ABOUT => {
             show_about_dialog(app);
         }
@@ -128,6 +142,7 @@ mod tests {
     fn test_menu_ids_are_defined() {
         assert_eq!(menu_ids::START_RECORDING, "start_recording");
         assert_eq!(menu_ids::STOP_RECORDING, "stop_recording");
+        assert_eq!(menu_ids::TRANSCRIBE_FILE, "transcribe_file");
         assert_eq!(menu_ids::ABOUT, "about");
         assert_eq!(menu_ids::QUIT, "quit");
     }

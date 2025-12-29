@@ -28,19 +28,12 @@ export interface RecordingResult {
 /** Microphone permission status */
 export type PermissionStatus = 'granted' | 'denied' | 'unknown';
 
-/** Transcription result */
+/** Transcription result from Whisper */
 export interface TranscriptionResult {
   text: string;
-  segments: TranscriptionSegment[];
-  language: string;
-  duration: number;
-}
-
-/** Individual transcription segment */
-export interface TranscriptionSegment {
-  start: number;
-  end: number;
-  text: string;
+  durationMs: number;
+  modelId: string;
+  language: string | null;
 }
 
 /** Application state */
@@ -50,6 +43,16 @@ export type AppState = 'idle' | 'recording' | 'transcribing' | 'injecting';
 export interface WhisperModel {
   id: string;
   name: string;
-  size: string;
+  sizeMb: number;
+  url: string;
+  sha256: string;
   downloaded: boolean;
+}
+
+/** Download progress event payload */
+export interface DownloadProgress {
+  modelId: string;
+  progress: number;
+  downloadedBytes: number;
+  totalBytes: number;
 }

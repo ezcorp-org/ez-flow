@@ -3,13 +3,26 @@
 //! This module contains all Tauri command handlers that can be invoked from the frontend.
 
 pub mod audio;
+pub mod models;
+pub mod transcription;
 
 use tauri::AppHandle;
 use tauri_plugin_autostart::ManagerExt;
 
 pub use audio::{
     check_microphone_permission, get_audio_devices, get_recording_duration, is_recording,
-    start_recording, stop_recording, AudioState,
+    start_recording, stop_recording, stop_recording_and_transcribe, AudioState,
+};
+
+pub use transcription::{
+    check_model_exists, get_loaded_model_id, get_models_directory, is_model_loaded,
+    list_available_models, load_whisper_model, load_whisper_model_from_path, transcribe_audio,
+    transcribe_samples, unload_whisper_model, TranscriptionState,
+};
+
+pub use models::{
+    delete_downloaded_model, download_model, get_available_models, get_downloaded_model_ids,
+    get_model_size, is_model_downloaded,
 };
 
 /// Simple greet command for testing IPC

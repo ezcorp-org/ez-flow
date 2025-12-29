@@ -2,8 +2,21 @@
 //!
 //! This module provides audio capture functionality for speech-to-text.
 
+use std::path::Path;
+
 pub mod capture;
 pub mod processing;
+
+/// Supported audio file extensions for transcription
+pub const SUPPORTED_AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "m4a", "ogg", "flac"];
+
+/// Check if a file path has a supported audio format
+pub fn is_supported_format(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .map(|e| SUPPORTED_AUDIO_EXTENSIONS.contains(&e.to_lowercase().as_str()))
+        .unwrap_or(false)
+}
 
 pub use capture::AudioCaptureService;
 pub use processing::{resample_for_whisper, stereo_to_mono, AudioBuffer};

@@ -4,9 +4,14 @@
 
 pub mod decoder;
 pub mod engine;
+pub mod models;
 
 pub use decoder::decode_audio_file;
 pub use engine::WhisperEngine;
+pub use models::{
+    delete_model, download_model_with_progress, get_downloaded_models, get_model,
+    get_model_manifest, DownloadError, DownloadProgress, WhisperModel,
+};
 
 use thiserror::Error;
 use std::path::PathBuf;
