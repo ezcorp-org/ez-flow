@@ -15,16 +15,7 @@
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true
     },
-    "windows": [
-      {
-        "title": "EZ Flow",
-        "width": 800,
-        "height": 600,
-        "resizable": true,
-        "fullscreen": false,
-        "visible": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }

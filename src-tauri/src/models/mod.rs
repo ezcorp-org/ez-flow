@@ -10,6 +10,9 @@ pub struct Settings {
     /// Whether the app should start minimized to tray
     pub start_minimized: bool,
 
+    /// Whether the app should launch at system startup
+    pub launch_at_login: bool,
+
     /// The global hotkey for push-to-talk
     pub hotkey: String,
 
@@ -27,6 +30,7 @@ impl Settings {
     pub fn new() -> Self {
         Self {
             start_minimized: false,
+            launch_at_login: false,
             hotkey: "Ctrl+Shift+Space".to_string(),
             model_id: "base".to_string(),
             language: "en".to_string(),

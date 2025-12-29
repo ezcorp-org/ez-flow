@@ -1,52 +1,66 @@
-# dependencies (bun install)
-node_modules
+# Dependencies
+node_modules/
 
-# output
-out
-dist
-build
+# Build outputs
+out/
+dist/
+build/
 *.tgz
 
+# Rust/Cargo
+target/
+*.rlib
+*.rmeta
+Cargo.lock
+
 # Tauri
-src-tauri/target
+src-tauri/target/
+src-tauri/WixTools/
+src-tauri/gen/
 
 # Vite
-.vite
+.vite/
 
-# code coverage
-coverage
+# Code coverage
+coverage/
 *.lcov
 
-# logs
-logs
+# Logs
+logs/
 *.log
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-# dotenv environment variable files
+# Environment files
 .env
 .env.development.local
 .env.test.local
 .env.production.local
 .env.local
 
-# caches
+# Caches
 .eslintcache
-.cache
+.cache/
 *.tsbuildinfo
 
-# IntelliJ based IDEs
-.idea
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 
-# VS Code
-.vscode
-
-# Finder (MacOS) folder config
+# OS
 .DS_Store
+Thumbs.db
+Desktop.ini
 
 # Playwright
-test-results
-playwright-report
-playwright/.cache
+test-results/
+playwright-report/
+playwright/.cache/
 
 # Svelte
-.svelte-kit
+.svelte-kit/
+
+# AI tooling
+.ai/

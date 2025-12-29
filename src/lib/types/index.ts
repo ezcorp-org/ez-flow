@@ -5,11 +5,28 @@
 /** Application settings */
 export interface Settings {
   startMinimized: boolean;
+  launchAtLogin: boolean;
   hotkey: string;
   modelId: string;
   language: string;
   autoCheckUpdates: boolean;
 }
+
+/** Audio input device */
+export interface AudioDevice {
+  name: string;
+  isDefault: boolean;
+}
+
+/** Recording result from audio capture */
+export interface RecordingResult {
+  filePath: string;
+  durationSecs: number;
+  sampleRate: number;
+}
+
+/** Microphone permission status */
+export type PermissionStatus = 'granted' | 'denied' | 'unknown';
 
 /** Transcription result */
 export interface TranscriptionResult {
