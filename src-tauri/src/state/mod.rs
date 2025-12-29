@@ -16,7 +16,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         Self {
-            settings: Arc::new(RwLock::new(Settings::new())),
+            settings: Arc::new(RwLock::new(Settings::default())),
         }
     }
 }

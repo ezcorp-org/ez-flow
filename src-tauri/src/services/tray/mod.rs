@@ -5,7 +5,7 @@
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Manager, Runtime,
+    AppHandle, Emitter, Runtime,
 };
 
 /// Menu item IDs
@@ -13,6 +13,8 @@ pub mod menu_ids {
     pub const START_RECORDING: &str = "start_recording";
     pub const STOP_RECORDING: &str = "stop_recording";
     pub const TRANSCRIBE_FILE: &str = "transcribe_file";
+    pub const HISTORY: &str = "history";
+    pub const SETTINGS: &str = "settings";
     pub const ABOUT: &str = "about";
     pub const QUIT: &str = "quit";
 }
@@ -44,6 +46,22 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
         None::<&str>,
     )?;
 
+    let history = MenuItem::with_id(
+        app,
+        menu_ids::HISTORY,
+        "History...",
+        true,
+        None::<&str>,
+    )?;
+
+    let settings = MenuItem::with_id(
+        app,
+        menu_ids::SETTINGS,
+        "Settings...",
+        true,
+        None::<&str>,
+    )?;
+
     // Create other menu items
     let about = MenuItem::with_id(app, menu_ids::ABOUT, "About EZ Flow", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, menu_ids::QUIT, "Quit", true, None::<&str>)?;
@@ -55,6 +73,9 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
             &start_recording,
             &stop_recording,
             &transcribe_file,
+            &PredefinedMenuItem::separator(app)?,
+            &history,
+            &settings,
             &PredefinedMenuItem::separator(app)?,
             &about,
             &PredefinedMenuItem::separator(app)?,
@@ -72,7 +93,7 @@ pub fn setup_tray<R: Runtime>(app: &AppHandle<R>) -> Result<(), Box<dyn std::err
     let _tray = TrayIconBuilder::new()
         .icon(icon)
         .menu(&menu)
-        .menu_on_left_click(true)
+        .show_menu_on_left_click(true)
         .tooltip("EZ Flow - Speech to Text")
         .on_menu_event(move |app, event| {
             handle_menu_event(app, event.id.as_ref());
@@ -102,6 +123,16 @@ fn handle_menu_event<R: Runtime>(app: &AppHandle<R>, menu_id: &str) {
             tracing::info!("Transcribe file requested from tray menu");
             // Emit event for frontend to open file picker
             let _ = app.emit("tray://transcribe-file", ());
+        }
+        menu_ids::HISTORY => {
+            tracing::info!("History requested from tray menu");
+            // Emit event for frontend to open history window
+            let _ = app.emit("tray://open-history", ());
+        }
+        menu_ids::SETTINGS => {
+            tracing::info!("Settings requested from tray menu");
+            // Emit event for frontend to open settings window
+            let _ = app.emit("tray://open-settings", ());
         }
         menu_ids::ABOUT => {
             show_about_dialog(app);
@@ -143,6 +174,8 @@ mod tests {
         assert_eq!(menu_ids::START_RECORDING, "start_recording");
         assert_eq!(menu_ids::STOP_RECORDING, "stop_recording");
         assert_eq!(menu_ids::TRANSCRIBE_FILE, "transcribe_file");
+        assert_eq!(menu_ids::HISTORY, "history");
+        assert_eq!(menu_ids::SETTINGS, "settings");
         assert_eq!(menu_ids::ABOUT, "about");
         assert_eq!(menu_ids::QUIT, "quit");
     }

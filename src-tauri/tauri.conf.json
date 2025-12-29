@@ -15,7 +15,60 @@
       "iconPath": "icons/icon.png",
       "iconAsTemplate": true
     },
-    "windows": [],
+    "windows": [
+      {
+        "label": "main",
+        "title": "EZ Flow",
+        "width": 400,
+        "height": 600,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false
+      },
+      {
+        "label": "recording-indicator",
+        "title": "Recording",
+        "width": 200,
+        "height": 48,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "url": "/indicator"
+      },
+      {
+        "label": "settings",
+        "title": "EZ Flow Settings",
+        "width": 500,
+        "height": 600,
+        "resizable": true,
+        "visible": false,
+        "center": true,
+        "url": "/settings"
+      },
+      {
+        "label": "history",
+        "title": "Transcription History",
+        "width": 600,
+        "height": 700,
+        "resizable": true,
+        "visible": false,
+        "center": true,
+        "url": "/history"
+      },
+      {
+        "label": "onboarding",
+        "title": "Welcome to EZ Flow",
+        "width": 600,
+        "height": 700,
+        "resizable": false,
+        "visible": false,
+        "center": true,
+        "url": "/onboarding"
+      }
+    ],
     "security": {
       "csp": null
     }

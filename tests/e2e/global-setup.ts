@@ -1,5 +1,5 @@
 import { spawn, ChildProcess } from 'child_process';
-import { chromium, FullConfig } from '@playwright/test';
+import { chromium } from '@playwright/test';
 
 let tauriProcess: ChildProcess | null = null;
 
@@ -7,7 +7,7 @@ let tauriProcess: ChildProcess | null = null;
  * Global setup for EZ Flow E2E tests
  * Starts the Tauri application before running tests
  */
-async function globalSetup(config: FullConfig): Promise<void> {
+async function globalSetup(): Promise<void> {
   console.log('Starting EZ Flow application for E2E tests...');
 
   // Check if we're running against a dev server or need to start the app
@@ -31,7 +31,7 @@ async function globalSetup(config: FullConfig): Promise<void> {
   });
 
   // Store process for teardown
-  (global as any).__TAURI_PROCESS__ = tauriProcess;
+  (global as Record<string, unknown>).__TAURI_PROCESS__ = tauriProcess;
 
   // Wait for app to be ready
   await waitForAppReady();

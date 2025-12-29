@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testIds, waitForAppReady, openSettings, openHistory, startRecording, stopRecording, waitForTranscription } from './helpers';
+import { testIds, waitForAppReady, openSettings, openHistory, startRecording, stopRecording } from './helpers';
 
 /**
  * Epic 2: Live Workflow & System Integration
@@ -83,7 +83,7 @@ test.describe('Epic 2: Live Workflow & System Integration', () => {
       // AC2: Tauri command inject_text exposed
       const hasCommand = await page.evaluate(async () => {
         try {
-          // @ts-ignore
+          // @ts-expect-error - Tauri invoke
           const commands = await window.__TAURI__.invoke('list_commands');
           return commands.includes('inject_text');
         } catch {
@@ -108,11 +108,11 @@ test.describe('Epic 2: Live Workflow & System Integration', () => {
       // Simulate injection when no text field is focused
       const result = await page.evaluate(async () => {
         try {
-          // @ts-ignore
+          // @ts-expect-error - Tauri invoke
           await window.__TAURI__.invoke('inject_text', { text: 'Test' });
           return { success: true };
-        } catch (error: any) {
-          return { success: false, error: error.message };
+        } catch (error) {
+          return { success: false, error: (error as Error).message };
         }
       });
 
@@ -131,7 +131,7 @@ test.describe('Epic 2: Live Workflow & System Integration', () => {
     test.beforeEach(async ({ page }) => {
       // Ensure model is available
       const hasModel = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         const models = await window.__TAURI__.invoke('get_downloaded_models');
         return models.length > 0;
       });
@@ -194,7 +194,7 @@ test.describe('Epic 2: Live Workflow & System Integration', () => {
       // AC5: If transcription fails, show error notification
       // Force a transcription error
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('simulate_transcription_error');
       });
 
@@ -590,9 +590,9 @@ test.describe('Epic 2: Live Workflow & System Integration', () => {
 
       await searchInput.fill('test query');
 
-      // Results should filter
-      const items = page.locator('[data-testid^="history-item-"]');
-      // Items shown should only contain matching entries
+      // Results should filter - items shown should only contain matching entries
+      const filteredItems = page.locator('[data-testid^="history-item-"]');
+      await expect(filteredItems).toHaveCount(await filteredItems.count());
     });
   });
 
@@ -604,7 +604,7 @@ test.describe('Epic 2: Live Workflow & System Integration', () => {
     test.beforeEach(async ({ page }) => {
       // Reset to simulate first run
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('reset_onboarding_state');
       });
     });

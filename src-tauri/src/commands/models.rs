@@ -4,7 +4,7 @@
 
 use crate::services::transcription::{
     delete_model as delete_model_file, download_model_with_progress, get_downloaded_models,
-    get_model, get_model_manifest, get_model_path, DownloadProgress, WhisperModel,
+    get_model, get_model_manifest, get_model_path, WhisperModel,
 };
 use tauri::{Emitter, Window};
 

@@ -3,7 +3,7 @@
 //! Decodes various audio formats to raw samples for transcription.
 
 use super::TranscriptionError;
-use crate::services::audio::processing::{resample_for_whisper, stereo_to_mono, AudioBuffer};
+use crate::services::audio::processing::{resample_for_whisper, AudioBuffer};
 use std::path::Path;
 use symphonia::core::audio::SampleBuffer;
 use symphonia::core::codecs::{DecoderOptions, CODEC_TYPE_NULL};

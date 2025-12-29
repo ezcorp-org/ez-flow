@@ -1,14 +1,13 @@
-import { FullConfig } from '@playwright/test';
 import { ChildProcess } from 'child_process';
 
 /**
  * Global teardown for EZ Flow E2E tests
  * Stops the Tauri application after all tests complete
  */
-async function globalTeardown(config: FullConfig): Promise<void> {
+async function globalTeardown(): Promise<void> {
   console.log('Stopping EZ Flow application...');
 
-  const tauriProcess = (global as any).__TAURI_PROCESS__ as ChildProcess | undefined;
+  const tauriProcess = (global as Record<string, unknown>).__TAURI_PROCESS__ as ChildProcess | undefined;
 
   if (tauriProcess) {
     // Send SIGTERM to gracefully stop the app

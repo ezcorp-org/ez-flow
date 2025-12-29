@@ -111,10 +111,8 @@ impl WhisperEngine {
         }
 
         // Get detected language if available
-        let language = state.full_lang_id().ok().and_then(|id| {
-            whisper_rs::get_lang_str(id)
-                .ok()
-                .map(|s| s.to_string())
+        let language = state.full_lang_id_from_state().ok().and_then(|id| {
+            whisper_rs::get_lang_str(id).map(|s| s.to_string())
         });
 
         let duration_ms = (audio.len() as f32 / 16.0) as u64;

@@ -22,7 +22,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should detect NVIDIA GPU availability', async ({ page }) => {
       // AC1: Detect NVIDIA GPU and CUDA availability
       const gpuInfo = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_gpu_info');
       });
 
@@ -44,7 +44,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
       const gpuMemory = page.locator('[data-testid="gpu-memory-usage"]');
       // Only visible if GPU is available
       const gpuAvailable = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         const info = await window.__TAURI__.invoke('get_gpu_info');
         return info.cuda_available || info.metal_available;
       });
@@ -73,7 +73,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
       // AC5: Graceful fallback to CPU
       // Simulate CUDA failure
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('simulate_cuda_failure');
       });
 
@@ -99,7 +99,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should detect Apple Silicon and Metal availability', async ({ page }) => {
       // AC1: Detect Apple Silicon and Metal
       const gpuInfo = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_gpu_info');
       });
 
@@ -110,7 +110,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should use Metal automatically when available', async ({ page }) => {
       // AC3: Automatically uses Metal when available
       const gpuInfo = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_gpu_info');
       });
 
@@ -135,7 +135,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should have transcribe command available', async ({ page }) => {
       // AC2: ezflow transcribe <audio_file>
       const commands = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('list_cli_commands');
       });
 
@@ -145,7 +145,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should have models list command', async ({ page }) => {
       // AC2: ezflow models list
       const commands = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('list_cli_commands');
       });
 
@@ -155,7 +155,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should have version information', async ({ page }) => {
       // AC2: ezflow --version
       const version = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_cli_version');
       });
 
@@ -165,7 +165,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('CLI and GUI should share model directory', async ({ page }) => {
       // AC6: Shares model directory with GUI app
       const paths = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_model_paths');
       });
 
@@ -268,7 +268,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
       // AC3: Notification when update available
       // Mock an available update
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('simulate_update_available', {
           version: '99.0.0',
           notes: 'Test release notes'
@@ -287,7 +287,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should show release notes before update', async ({ page }) => {
       // AC5: Release notes displayed
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('simulate_update_available', {
           version: '99.0.0',
           notes: 'New feature: Better transcription accuracy'
@@ -313,7 +313,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
   test.describe('Story 3.6-3.8: Production Installers', () => {
     test('should provide platform information', async ({ page }) => {
       const platform = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_platform');
       });
 
@@ -340,7 +340,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should have low idle memory usage', async ({ page }) => {
       // AC1: Idle memory usage < 50MB
       const memoryUsage = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_memory_usage');
       });
 
@@ -351,7 +351,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
     test('should lazy-load model on first transcription', async ({ page }) => {
       // AC2: Model lazy-loaded on first transcription
       const modelLoadedBefore = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('is_model_loaded');
       });
 
@@ -365,7 +365,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
       await page.locator(`[data-testid="${testIds.transcriptionResult}"]`).waitFor({ timeout: 30000 });
 
       const modelLoadedAfter = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('is_model_loaded');
       });
 
@@ -391,7 +391,7 @@ test.describe('Epic 3: Polish, Performance & Developer Tools', () => {
       await page.waitForTimeout(2000);
 
       const cpuUsage = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         return await window.__TAURI__.invoke('get_cpu_usage');
       });
 
@@ -458,7 +458,7 @@ test.describe('Cross-Epic Integration Tests', () => {
   test('complete user journey: first launch to first transcription', async ({ page }) => {
     // Simulate fresh install
     await page.evaluate(async () => {
-      // @ts-ignore
+      // @ts-expect-error - Tauri invoke
       await window.__TAURI__.invoke('reset_all_state');
     });
 
@@ -544,7 +544,7 @@ test.describe('Cross-Epic Integration Tests', () => {
 
     // Delete the model externally
     await page.evaluate(async () => {
-      // @ts-ignore
+      // @ts-expect-error - Tauri invoke
       await window.__TAURI__.invoke('delete_model', { modelId: 'tiny' });
     });
 

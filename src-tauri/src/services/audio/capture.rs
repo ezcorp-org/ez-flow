@@ -4,7 +4,6 @@
 
 use super::{processing::AudioBuffer, AudioDevice, AudioError, RecordingResult};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};

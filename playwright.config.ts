@@ -6,18 +6,19 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests/e2e',
+  outputDir: './test-results/artifacts',
   fullyParallel: false, // Desktop app tests should run sequentially
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: 1, // Single worker for desktop app
   reporter: [
-    ['html', { outputFolder: 'test-results/html' }],
+    ['html', { outputFolder: 'playwright-report' }],
     ['json', { outputFile: 'test-results/results.json' }],
     ['list']
   ],
 
   use: {
-    baseURL: 'tauri://localhost',
+    baseURL: process.env.E2E_DEV_MODE ? 'http://localhost:5173' : 'tauri://localhost',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'on-first-retry',

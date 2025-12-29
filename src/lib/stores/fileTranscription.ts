@@ -6,7 +6,6 @@
 
 import { writable } from 'svelte/store';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
 import type { TranscriptionResult } from '../types';
 
 interface FileTranscriptionState {

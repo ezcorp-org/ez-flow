@@ -6,7 +6,6 @@ use super::{get_model_path, get_models_dir};
 use futures_util::StreamExt;
 use sha2::{Digest, Sha256};
 use std::io::Write;
-use std::path::Path;
 use thiserror::Error;
 
 /// Available Whisper model

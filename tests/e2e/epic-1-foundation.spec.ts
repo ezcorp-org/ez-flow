@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testIds, waitForAppReady, openSettings, selectModel, downloadModel } from './helpers';
+import { testIds, waitForAppReady, openSettings } from './helpers';
 
 /**
  * Epic 1: Foundation & Core Transcription
@@ -41,8 +41,6 @@ test.describe('Epic 1: Foundation & Core Transcription', () => {
     test('app should start minimized to system tray', async ({ page }) => {
       // AC1: App starts minimized to system tray
       // In test mode, we verify the app doesn't show a main window by default
-      const mainWindow = page.locator('[data-testid="main-window"]');
-
       // The main window should be hidden or minimized on fresh start
       // This is controlled by Tauri config, we verify the setting works
       await openSettings(page);
@@ -116,7 +114,7 @@ test.describe('Epic 1: Foundation & Core Transcription', () => {
 
       // Trigger a scenario without mic (mocked in test environment)
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('simulate_no_microphone');
       });
 
@@ -135,7 +133,7 @@ test.describe('Epic 1: Foundation & Core Transcription', () => {
       // AC2: Tauri command transcribe_audio exposed
       const result = await page.evaluate(async () => {
         try {
-          // @ts-ignore
+          // @ts-expect-error - Tauri invoke
           const commands = await window.__TAURI__.invoke('list_commands');
           return commands.includes('transcribe_audio');
         } catch {
@@ -157,7 +155,7 @@ test.describe('Epic 1: Foundation & Core Transcription', () => {
       // AC5: Returns descriptive error if no model
       // Clear any downloaded models for this test
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('clear_models');
       });
 
@@ -243,8 +241,7 @@ test.describe('Epic 1: Foundation & Core Transcription', () => {
 
     test('should show result window with copy button', async ({ page }) => {
       // AC4: Result window shows filename, transcription, copy button
-      // This test uses a fixture audio file
-      const fixtureAudio = './tests/fixtures/audio/hello-world.wav';
+      // This test uses a fixture audio file (./tests/fixtures/audio/hello-world.wav)
 
       // Mock file drop or use file picker
       await page.click(`[data-testid="${testIds.filePickerButton}"]`);
@@ -261,7 +258,7 @@ test.describe('Epic 1: Foundation & Core Transcription', () => {
     test('should prompt for model if none downloaded', async ({ page }) => {
       // AC7: If no model downloaded, prompts user
       await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         await window.__TAURI__.invoke('clear_models');
       });
 
@@ -280,7 +277,7 @@ test.describe('Epic 1: Foundation & Core Transcription', () => {
     test.beforeEach(async ({ page }) => {
       // Ensure we have at least the tiny model for testing
       const hasModel = await page.evaluate(async () => {
-        // @ts-ignore
+        // @ts-expect-error - Tauri invoke
         const models = await window.__TAURI__.invoke('get_downloaded_models');
         return models.length > 0;
       });

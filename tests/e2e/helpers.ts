@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Page } from '@playwright/test';
 
 /**
  * Test helper utilities for EZ Flow E2E tests
@@ -247,7 +247,7 @@ export async function resetSettings(page: Page): Promise<void> {
 export async function mockAudioInput(page: Page, audioFile: string): Promise<void> {
   // This would interact with the Tauri backend to mock audio input
   await page.evaluate(async (file) => {
-    // @ts-ignore - Tauri invoke
+    // @ts-expect-error - Tauri invoke
     await window.__TAURI__.invoke('mock_audio_input', { file });
   }, audioFile);
 }

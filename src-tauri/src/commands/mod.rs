@@ -3,8 +3,14 @@
 //! This module contains all Tauri command handlers that can be invoked from the frontend.
 
 pub mod audio;
+pub mod history;
+pub mod hotkey;
+pub mod indicator;
 pub mod models;
+pub mod settings;
+pub mod text_inject;
 pub mod transcription;
+pub mod workflow;
 
 use tauri::AppHandle;
 use tauri_plugin_autostart::ManagerExt;
@@ -24,6 +30,9 @@ pub use models::{
     delete_downloaded_model, download_model, get_available_models, get_downloaded_model_ids,
     get_model_size, is_model_downloaded,
 };
+
+// Re-export hotkey state for managed state
+pub use crate::services::hotkey::HotkeyState;
 
 /// Simple greet command for testing IPC
 #[tauri::command]

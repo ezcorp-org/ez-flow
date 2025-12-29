@@ -63,18 +63,18 @@ pub async fn unload_whisper_model(state: State<'_, TranscriptionState>) -> Resul
 
 /// Check if a model is currently loaded
 #[tauri::command]
-pub async fn is_model_loaded(state: State<'_, TranscriptionState>) -> bool {
-    state.engine.is_loaded().await
+pub async fn is_model_loaded(state: State<'_, TranscriptionState>) -> Result<bool, String> {
+    Ok(state.engine.is_loaded().await)
 }
 
 /// Get the currently loaded model ID
 #[tauri::command]
-pub async fn get_loaded_model_id(state: State<'_, TranscriptionState>) -> Option<String> {
+pub async fn get_loaded_model_id(state: State<'_, TranscriptionState>) -> Result<Option<String>, String> {
     let model_id = state.engine.model_id().await;
     if model_id.is_empty() {
-        None
+        Ok(None)
     } else {
-        Some(model_id)
+        Ok(Some(model_id))
     }
 }
 

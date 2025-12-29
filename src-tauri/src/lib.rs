@@ -1,3 +1,4 @@
+use tauri::Manager;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub mod commands;
@@ -38,9 +39,18 @@ pub fn run() {
         .plugin(tauri_plugin_clipboard_manager::init())
         .manage(commands::AudioState::default())
         .manage(commands::TranscriptionState::default())
+        .manage(commands::HotkeyState::default())
+        .manage(services::platform::TextInjectorState::default())
+        .manage(services::storage::SettingsState::default())
+        .manage(services::storage::DatabaseState::default())
         .setup(|app| {
             // Set up system tray
             services::tray::setup_tray(app.handle())?;
+
+            // Set up global hotkey with graceful degradation
+            let hotkey_state = app.state::<commands::HotkeyState>();
+            services::hotkey::setup_hotkey(app.handle(), &hotkey_state);
+
             tracing::info!("Application setup complete");
             Ok(())
         })
@@ -50,31 +60,65 @@ pub fn run() {
             commands::disable_autostart,
             commands::is_autostart_enabled,
             // Audio commands
-            commands::start_recording,
-            commands::stop_recording,
-            commands::stop_recording_and_transcribe,
-            commands::get_audio_devices,
-            commands::check_microphone_permission,
-            commands::is_recording,
-            commands::get_recording_duration,
+            commands::audio::start_recording,
+            commands::audio::stop_recording,
+            commands::audio::stop_recording_and_transcribe,
+            commands::audio::get_audio_devices,
+            commands::audio::check_microphone_permission,
+            commands::audio::is_recording,
+            commands::audio::get_recording_duration,
             // Transcription commands
-            commands::load_whisper_model,
-            commands::load_whisper_model_from_path,
-            commands::unload_whisper_model,
-            commands::is_model_loaded,
-            commands::get_loaded_model_id,
-            commands::transcribe_audio,
-            commands::transcribe_samples,
-            commands::get_models_directory,
-            commands::check_model_exists,
-            commands::list_available_models,
+            commands::transcription::load_whisper_model,
+            commands::transcription::load_whisper_model_from_path,
+            commands::transcription::unload_whisper_model,
+            commands::transcription::is_model_loaded,
+            commands::transcription::get_loaded_model_id,
+            commands::transcription::transcribe_audio,
+            commands::transcription::transcribe_samples,
+            commands::transcription::get_models_directory,
+            commands::transcription::check_model_exists,
+            commands::transcription::list_available_models,
             // Model management commands
-            commands::get_available_models,
-            commands::get_downloaded_model_ids,
-            commands::is_model_downloaded,
-            commands::download_model,
-            commands::delete_downloaded_model,
-            commands::get_model_size,
+            commands::models::get_available_models,
+            commands::models::get_downloaded_model_ids,
+            commands::models::is_model_downloaded,
+            commands::models::download_model,
+            commands::models::delete_downloaded_model,
+            commands::models::get_model_size,
+            // Hotkey commands
+            commands::hotkey::set_hotkey,
+            commands::hotkey::clear_hotkey,
+            commands::hotkey::get_current_hotkey,
+            commands::hotkey::get_platform_default_hotkey,
+            commands::hotkey::check_hotkey_available,
+            commands::hotkey::is_hotkey_registered,
+            commands::hotkey::get_hotkey_error,
+            // Text injection commands
+            commands::text_inject::inject_text,
+            commands::text_inject::set_injection_delay,
+            commands::text_inject::get_injection_permission_instructions,
+            // Workflow commands
+            commands::workflow::push_to_talk_complete,
+            commands::workflow::is_push_to_talk_cooldown_active,
+            commands::workflow::get_workflow_state,
+            // Indicator commands
+            commands::indicator::show_recording_indicator,
+            commands::indicator::hide_recording_indicator,
+            commands::indicator::set_indicator_position,
+            commands::indicator::get_indicator_positions,
+            // Settings commands
+            commands::settings::get_settings,
+            commands::settings::update_settings,
+            commands::settings::update_setting,
+            commands::settings::reset_settings,
+            commands::settings::export_settings,
+            commands::settings::import_settings,
+            // History commands
+            commands::history::get_history,
+            commands::history::search_history,
+            commands::history::delete_history_entry,
+            commands::history::clear_history,
+            commands::history::get_history_count,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

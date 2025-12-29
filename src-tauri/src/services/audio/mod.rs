@@ -43,6 +43,9 @@ pub enum AudioError {
 
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
+
+    #[error("WAV encoding error: {0}")]
+    WavError(#[from] hound::Error),
 }
 
 /// Audio input device information
