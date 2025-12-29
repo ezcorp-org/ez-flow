@@ -27,7 +27,7 @@ tokio = { version = "1", features = ["full"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-appender = "0.2"
-thiserror = "1"
+thiserror = "2"
 
 # Audio capture and processing
 cpal = "0.15"
