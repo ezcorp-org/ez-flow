@@ -13,10 +13,6 @@ interface ModelValidationResult {
   error: string | null;
 }
 
-interface Settings {
-  onboarding_completed: boolean;
-  onboarding_skipped: boolean;
-}
 
 /**
  * Check if model validation is needed and show modal if necessary
@@ -24,16 +20,6 @@ interface Settings {
  */
 async function validateModelOnStartup(target: HTMLElement): Promise<boolean> {
   try {
-    // Check if onboarding has been completed or skipped
-    const settings = await invoke<Settings>('get_settings');
-
-    // Skip validation if onboarding hasn't been completed yet
-    // The onboarding flow will handle model selection
-    if (!settings.onboarding_completed && !settings.onboarding_skipped) {
-      console.log('Onboarding not completed, skipping model validation');
-      return true;
-    }
-
     // Validate and attempt to load the configured model
     const result = await invoke<ModelValidationResult>('validate_and_load_model');
 
