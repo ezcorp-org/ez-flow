@@ -1,0 +1,9 @@
+# Audio test fixtures
+#
+# Place test audio files here:
+# - hello-world.wav: Short "Hello World" recording
+# - long-speech.wav: 30+ second recording
+# - multilingual.wav: Non-English speech samples
+#
+# For CI, these can be generated using text-to-speech or
+# downloaded from a test assets repository.
