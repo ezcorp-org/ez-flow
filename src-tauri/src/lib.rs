@@ -85,6 +85,7 @@ pub fn run() {
             commands::models::download_model,
             commands::models::delete_downloaded_model,
             commands::models::get_model_size,
+            commands::models::validate_and_load_model,
             // Hotkey commands
             commands::hotkey::set_hotkey,
             commands::hotkey::clear_hotkey,

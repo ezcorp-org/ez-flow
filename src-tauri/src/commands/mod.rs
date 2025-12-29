@@ -28,7 +28,7 @@ pub use transcription::{
 
 pub use models::{
     delete_downloaded_model, download_model, get_available_models, get_downloaded_model_ids,
-    get_model_size, is_model_downloaded,
+    get_model_size, is_model_downloaded, validate_and_load_model, ModelValidationResult,
 };
 
 pub use settings::{get_gpu_backend, get_gpu_info, get_supported_languages, is_gpu_available_cmd};

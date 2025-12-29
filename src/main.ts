@@ -1,9 +1,73 @@
 import './app.css';
-import { mount } from 'svelte';
+import { mount, unmount } from 'svelte';
+import { invoke } from '@tauri-apps/api/core';
 import { initTrayEventListeners } from './lib/services/trayEvents';
 
 // Simple path-based routing for Tauri windows
 const path = window.location.pathname;
+
+interface ModelValidationResult {
+  loaded: boolean;
+  model_id: string;
+  needs_download: boolean;
+  error: string | null;
+}
+
+interface Settings {
+  onboarding_completed: boolean;
+  onboarding_skipped: boolean;
+}
+
+/**
+ * Check if model validation is needed and show modal if necessary
+ * Returns true if the app should continue loading, false if waiting for modal
+ */
+async function validateModelOnStartup(target: HTMLElement): Promise<boolean> {
+  try {
+    // Check if onboarding has been completed or skipped
+    const settings = await invoke<Settings>('get_settings');
+
+    // Skip validation if onboarding hasn't been completed yet
+    // The onboarding flow will handle model selection
+    if (!settings.onboarding_completed && !settings.onboarding_skipped) {
+      console.log('Onboarding not completed, skipping model validation');
+      return true;
+    }
+
+    // Validate and attempt to load the configured model
+    const result = await invoke<ModelValidationResult>('validate_and_load_model');
+
+    if (result.loaded) {
+      console.log(`Model ${result.model_id} loaded successfully`);
+      return true;
+    }
+
+    if (result.needs_download) {
+      console.log('Model needs download, showing modal');
+
+      // Dynamically import and mount the modal
+      const { default: ModelValidationModal } = await import('./lib/components/ModelValidationModal.svelte');
+
+      return new Promise((resolve) => {
+        const modalInstance = mount(ModelValidationModal, {
+          target,
+          props: {
+            onComplete: () => {
+              unmount(modalInstance);
+              resolve(true);
+            }
+          }
+        });
+      });
+    }
+
+    return true;
+  } catch (e) {
+    console.error('Model validation failed:', e);
+    // Continue anyway - let the app handle the error when transcription is attempted
+    return true;
+  }
+}
 
 async function init() {
   const target = document.getElementById('app')!;
@@ -16,6 +80,9 @@ async function init() {
     } catch (e) {
       console.error('Failed to init tray listeners:', e);
     }
+
+    // Validate model on main window startup (non-blocking for other routes)
+    await validateModelOnStartup(target);
   }
 
   if (path === '/settings' || path === '/settings/') {

@@ -237,6 +237,43 @@ impl SharedWhisperEngine {
         let engine = self.inner.lock().await;
         engine.transcribe(&audio)
     }
+
+    /// Transcribe with automatic model loading fallback
+    ///
+    /// If no model is loaded, attempts to load the model specified by model_id.
+    /// This provides lazy loading capability for scenarios where the model
+    /// wasn't loaded at startup.
+    pub async fn transcribe_with_auto_load(
+        &self,
+        audio: Vec<f32>,
+        model_id: &str,
+    ) -> Result<TranscriptionResult, TranscriptionError> {
+        let mut engine = self.inner.lock().await;
+
+        // If model is not loaded, attempt lazy loading
+        if !engine.is_loaded() {
+            tracing::info!("No model loaded, attempting lazy load of model: {}", model_id);
+
+            let model_path = super::get_model_path(model_id);
+
+            if !model_path.exists() {
+                tracing::error!("Model file not found for lazy loading: {:?}", model_path);
+                return Err(TranscriptionError::ModelNotLoaded);
+            }
+
+            match engine.load_model(&model_path) {
+                Ok(_) => {
+                    tracing::info!("Lazy loaded model {} successfully", model_id);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to lazy load model {}: {}", model_id, e);
+                    return Err(TranscriptionError::ModelNotLoaded);
+                }
+            }
+        }
+
+        engine.transcribe(&audio)
+    }
 }
 
 impl Default for SharedWhisperEngine {
@@ -276,5 +313,41 @@ mod tests {
         let mut engine = WhisperEngine::new();
         let result = engine.load_model(Path::new("/nonexistent/model.bin"));
         assert!(matches!(result, Err(ModelError::NotFound(_))));
+    }
+
+    #[test]
+    fn test_shared_engine_creation() {
+        let engine = SharedWhisperEngine::new();
+        // SharedWhisperEngine should be clonable
+        let _engine_clone = engine.clone();
+    }
+
+    #[tokio::test]
+    async fn test_shared_engine_is_loaded_default() {
+        let engine = SharedWhisperEngine::new();
+        assert!(!engine.is_loaded().await);
+    }
+
+    #[tokio::test]
+    async fn test_shared_engine_model_id_default() {
+        let engine = SharedWhisperEngine::new();
+        assert!(engine.model_id().await.is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_transcribe_with_auto_load_missing_model() {
+        let engine = SharedWhisperEngine::new();
+        // Should return ModelNotLoaded when model file doesn't exist
+        let result = engine
+            .transcribe_with_auto_load(vec![0.0; 16000], "nonexistent_model")
+            .await;
+        assert!(matches!(result, Err(TranscriptionError::ModelNotLoaded)));
+    }
+
+    #[tokio::test]
+    async fn test_shared_engine_transcribe_without_model() {
+        let engine = SharedWhisperEngine::new();
+        let result = engine.transcribe(vec![0.0; 16000]).await;
+        assert!(matches!(result, Err(TranscriptionError::ModelNotLoaded)));
     }
 }
