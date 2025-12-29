@@ -15,7 +15,7 @@ const unlisteners: UnlistenFn[] = [];
 /**
  * Start recording audio (legacy - now handled directly in Rust)
  */
-async function startRecording() {
+export async function startRecording() {
   if (isRecording) {
     return;
   }
@@ -32,7 +32,7 @@ async function startRecording() {
 /**
  * Stop recording and transcribe
  */
-async function stopRecording() {
+export async function stopRecording() {
   if (!isRecording) {
     console.log('Not currently recording');
     return;
@@ -75,7 +75,7 @@ async function transcribeFile() {
       return;
     }
 
-    const path = typeof filePath === 'string' ? filePath : filePath.path;
+    const path = typeof filePath === 'string' ? filePath : (filePath as { path: string }).path;
     console.log('Transcribing file:', path);
 
     // Transcribe the file

@@ -1,20 +1,21 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import { downloadAndInstall, getCurrentVersion, type DownloadProgress } from '$lib/services/updater';
 
-  export let version: string;
-  export let notes: string | null = null;
+  interface Props {
+    version: string;
+    notes?: string | null;
+    onDismiss?: () => void;
+  }
 
-  const dispatch = createEventDispatcher<{
-    dismiss: void;
-  }>();
+  let { version, notes = null, onDismiss = () => {} }: Props = $props();
 
-  let currentVersion = '';
-  let downloading = false;
-  let progress = 0;
-  let totalSize: number | null = null;
-  let downloadedSize = 0;
-  let error: string | null = null;
+  let currentVersion = $state('');
+  let downloading = $state(false);
+  let progress = $state(0);
+  let totalSize = $state<number | null>(null);
+  let downloadedSize = $state(0);
+  let error = $state<string | null>(null);
 
   onMount(async () => {
     currentVersion = await getCurrentVersion();
@@ -112,13 +113,13 @@
       <div class="flex gap-3">
         <button
           class="flex-1 px-4 py-2 bg-yellow-400 hover:bg-yellow-500 text-black rounded font-medium transition-colors"
-          on:click={install}
+          onclick={install}
         >
           Install & Restart
         </button>
         <button
           class="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded transition-colors"
-          on:click={() => dispatch('dismiss')}
+          onclick={() => onDismiss()}
         >
           Later
         </button>

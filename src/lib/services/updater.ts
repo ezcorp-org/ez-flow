@@ -5,7 +5,6 @@
  */
 
 import { check, Update } from '@tauri-apps/plugin-updater';
-import { relaunch } from '@tauri-apps/plugin-process';
 import { invoke } from '@tauri-apps/api/core';
 
 export interface UpdateInfo {
@@ -88,8 +87,8 @@ export async function downloadAndInstall(
       }
     });
 
-    // Restart to apply update
-    await relaunch();
+    // The updater plugin handles restart internally after download completes
+    // No explicit restart call needed - it will relaunch automatically
   } catch (e) {
     console.error('Update installation failed:', e);
     throw e;
@@ -115,8 +114,8 @@ export async function checkOnStartup(): Promise<UpdateInfo | null> {
  */
 export async function getCurrentVersion(): Promise<string> {
   try {
-    const { version } = await import('@tauri-apps/api/app');
-    return await version();
+    const app = await import('@tauri-apps/api/app');
+    return await app.getVersion();
   } catch {
     return '0.0.0';
   }
