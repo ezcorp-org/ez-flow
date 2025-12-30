@@ -255,16 +255,18 @@ fn stop_recording_from_tray(app: &AppHandle<tauri::Wry>) {
         }
     };
 
-    // Clone the engine and settings for the async task
+    // Clone the engine for the async task
     let engine = transcription_state.engine.clone();
-    let settings = settings_state.inner().clone();
+    // Get model_id synchronously before spawning
+    let model_id = {
+        let settings = settings_state.inner();
+        let rt = tokio::runtime::Handle::current();
+        rt.block_on(async { settings.get().await.model_id.clone() })
+    };
 
     // Spawn async task for transcription with auto-load
     tauri::async_runtime::spawn(async move {
         tracing::info!("Starting transcription...");
-
-        // Get model_id from settings for auto-loading
-        let model_id = settings.get().await.model_id.clone();
 
         match engine.transcribe_with_auto_load(samples, &model_id).await {
             Ok(result) => {
@@ -294,8 +296,6 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
     tracing::info!("Opening file dialog for transcription");
 
     let app_handle = app.clone();
-    let settings_state = app.state::<SettingsState>();
-    let settings = settings_state.inner().clone();
 
     // Open file dialog
     app.dialog()
@@ -311,16 +311,20 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
             tracing::info!("Selected file for transcription: {}", path_str);
 
             let transcription_state = app_handle.state::<TranscriptionState>();
+            let settings_state = app_handle.state::<SettingsState>();
             let engine = transcription_state.engine.clone();
             let app_for_emit = app_handle.clone();
-            let settings_clone = settings.clone();
+
+            // Get model_id synchronously before spawning
+            let model_id = {
+                let settings = settings_state.inner();
+                let rt = tokio::runtime::Handle::current();
+                rt.block_on(async { settings.get().await.model_id.clone() })
+            };
 
             // Spawn async task for transcription with auto-load
             tauri::async_runtime::spawn(async move {
                 tracing::info!("Loading audio file: {}", path_str);
-
-                // Get model_id from settings for auto-loading
-                let model_id = settings_clone.get().await.model_id.clone();
 
                 // Read and decode the audio file
                 match crate::services::transcription::decoder::decode_audio_file(std::path::Path::new(&path_str)) {

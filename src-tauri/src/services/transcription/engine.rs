@@ -70,7 +70,7 @@ impl WhisperEngine {
             use_gpu
         );
 
-        let mut params = WhisperContextParameters::default();
+        let params = WhisperContextParameters::default();
 
         // Enable GPU if requested and available
         #[cfg(any(feature = "cuda", feature = "metal"))]
