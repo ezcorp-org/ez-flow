@@ -2,6 +2,8 @@
 	import { onMount } from 'svelte';
 	import { invoke } from '@tauri-apps/api/core';
 	import { writeText } from '@tauri-apps/plugin-clipboard-manager';
+	import BackButton from '$lib/components/BackButton.svelte';
+	import NavBar from '$lib/components/NavBar.svelte';
 
 	interface HistoryEntry {
 		id: number;
@@ -111,6 +113,10 @@
 </script>
 
 <div class="history-page" data-testid="history-panel">
+	<div class="top-bar">
+		<BackButton />
+	</div>
+
 	<div class="header">
 		<h1 class="title">History</h1>
 		<span class="count">{entries.length} entries</span>
@@ -216,14 +222,21 @@
 			{/each}
 		{/if}
 	</div>
+
+	<NavBar />
 </div>
 
 <style>
 	.history-page {
 		padding: 1.5rem;
+		padding-bottom: 5rem; /* Space for navbar */
 		background: #0a0a0a;
 		min-height: 100vh;
 		color: #e5e5e5;
+	}
+
+	.top-bar {
+		margin-bottom: 1rem;
 	}
 
 	.header {

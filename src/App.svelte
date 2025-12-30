@@ -3,6 +3,7 @@
 	import { onMount, onDestroy } from 'svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import HistoryList from '$lib/components/HistoryList.svelte';
+	import NavBar from '$lib/components/NavBar.svelte';
 
 	let historyList: HistoryList;
 	let lastTranscription = $state<string | null>(null);
@@ -120,6 +121,8 @@
 			Tip: Use <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd> for push-to-talk anywhere
 		</p>
 	</footer>
+
+	<NavBar />
 </main>
 
 <style>
@@ -130,6 +133,7 @@
 		display: flex;
 		flex-direction: column;
 		padding: 2rem;
+		padding-bottom: 5rem; /* Space for navbar */
 	}
 
 	.header {

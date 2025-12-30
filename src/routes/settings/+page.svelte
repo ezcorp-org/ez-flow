@@ -4,6 +4,8 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
+	import BackButton from '$lib/components/BackButton.svelte';
+	import NavBar from '$lib/components/NavBar.svelte';
 
 	let advancedExpanded = $state(false);
 	let showResetConfirm = $state(false);
@@ -153,6 +155,10 @@
 </script>
 
 <div class="settings-page" data-testid="settings-panel">
+	<div class="top-bar">
+		<BackButton />
+	</div>
+
 	<h1 class="settings-title">Settings</h1>
 
 	<!-- Recording Section -->
@@ -381,14 +387,21 @@
 			</div>
 		{/if}
 	</section>
+
+	<NavBar />
 </div>
 
 <style>
 	.settings-page {
 		padding: 1.5rem;
+		padding-bottom: 5rem; /* Space for navbar */
 		background: #0a0a0a;
 		min-height: 100vh;
 		color: #e5e5e5;
+	}
+
+	.top-bar {
+		margin-bottom: 1rem;
 	}
 
 	.settings-title {
