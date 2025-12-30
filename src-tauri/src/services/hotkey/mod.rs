@@ -4,10 +4,18 @@
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Runtime};
+use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use thiserror::Error;
 use tokio::sync::RwLock;
+
+use crate::commands::audio::{AudioCommand, AudioResponse, AudioState};
+use crate::commands::TranscriptionState;
+use crate::models::HistoryEntry;
+use crate::services::audio::processing::resample_for_whisper;
+use crate::services::storage::{DatabaseState, SettingsState};
+use chrono::Utc;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 /// Errors that can occur during hotkey operations
 #[derive(Error, Debug)]
@@ -88,14 +96,139 @@ pub fn register_hotkey<R: Runtime>(
                 if !is_recording.load(Ordering::SeqCst) {
                     tracing::info!("Hotkey pressed - starting recording");
                     is_recording.store(true, Ordering::SeqCst);
-                    let _ = app.emit("hotkey://recording-started", ());
+
+                    // Actually start recording
+                    let audio_state = app.state::<AudioState>();
+                    match audio_state.send_command(AudioCommand::Start) {
+                        Ok(AudioResponse::Ok) => {
+                            tracing::info!("Recording started from hotkey");
+                            // Start emitting audio levels
+                            if let Err(e) = audio_state.start_level_emitter(app.clone()) {
+                                tracing::warn!("Failed to start level emitter: {}", e);
+                            }
+                            let _ = app.emit("hotkey://recording-started", ());
+                        }
+                        Ok(AudioResponse::Error(e)) => {
+                            tracing::error!("Failed to start recording from hotkey: {}", e);
+                            is_recording.store(false, Ordering::SeqCst);
+                        }
+                        Ok(_) => {
+                            tracing::error!(
+                                "Unexpected response when starting recording from hotkey"
+                            );
+                            is_recording.store(false, Ordering::SeqCst);
+                        }
+                        Err(e) => {
+                            tracing::error!("Error starting recording from hotkey: {}", e);
+                            is_recording.store(false, Ordering::SeqCst);
+                        }
+                    }
                 }
             }
             ShortcutState::Released => {
                 if is_recording.load(Ordering::SeqCst) {
                     tracing::info!("Hotkey released - stopping recording");
                     is_recording.store(false, Ordering::SeqCst);
+
+                    // Stop recording and transcribe
+                    let audio_state = app.state::<AudioState>();
+                    audio_state.stop_level_emitter();
+
+                    let buffer = match audio_state.send_command(AudioCommand::Stop) {
+                        Ok(AudioResponse::Buffer(Ok(buf))) => buf,
+                        Ok(AudioResponse::Buffer(Err(e))) => {
+                            tracing::error!("Failed to stop recording from hotkey: {}", e);
+                            let _ = app.emit("hotkey://recording-stopped", ());
+                            return;
+                        }
+                        Ok(_) => {
+                            tracing::error!(
+                                "Unexpected response when stopping recording from hotkey"
+                            );
+                            let _ = app.emit("hotkey://recording-stopped", ());
+                            return;
+                        }
+                        Err(e) => {
+                            tracing::error!("Error stopping recording from hotkey: {}", e);
+                            let _ = app.emit("hotkey://recording-stopped", ());
+                            return;
+                        }
+                    };
+
                     let _ = app.emit("hotkey://recording-stopped", ());
+
+                    if buffer.samples.is_empty() {
+                        tracing::warn!("No audio recorded from hotkey");
+                        return;
+                    }
+
+                    // Resample for Whisper
+                    let samples = match resample_for_whisper(buffer) {
+                        Ok(s) => s,
+                        Err(e) => {
+                            tracing::error!("Failed to resample audio from hotkey: {}", e);
+                            return;
+                        }
+                    };
+
+                    // Get states for async task
+                    let transcription_state = app.state::<TranscriptionState>();
+                    let settings_state = app.state::<SettingsState>();
+                    let engine = transcription_state.engine.clone();
+                    let model_id = settings_state.get_model_id_sync();
+                    let app_handle = app.clone();
+
+                    // Spawn async task for transcription
+                    tauri::async_runtime::spawn(async move {
+                        tracing::info!("Starting transcription from hotkey...");
+
+                        match engine.transcribe_with_auto_load(samples, &model_id).await {
+                            Ok(result) => {
+                                tracing::info!(
+                                    "Hotkey transcription complete: {} chars",
+                                    result.text.len()
+                                );
+
+                                // Save to history
+                                let database_state = app_handle.state::<DatabaseState>();
+                                if let Some(db) = database_state.get() {
+                                    let entry = HistoryEntry {
+                                        id: 0,
+                                        text: result.text.clone(),
+                                        timestamp: Utc::now().to_rfc3339(),
+                                        duration_ms: result.duration_ms,
+                                        model_id: result.model_id.clone(),
+                                        language: result.language.clone(),
+                                        gpu_used: result.gpu_used,
+                                    };
+                                    if let Err(e) = db.insert_history(&entry).await {
+                                        tracing::error!(
+                                            "Failed to save transcription to history: {}",
+                                            e
+                                        );
+                                    }
+                                }
+
+                                // Copy to clipboard
+                                if !result.text.is_empty() {
+                                    if let Err(e) = app_handle.clipboard().write_text(&result.text)
+                                    {
+                                        tracing::error!("Failed to copy to clipboard: {}", e);
+                                    } else {
+                                        tracing::info!("Transcription copied to clipboard");
+                                    }
+                                }
+
+                                let _ = app_handle
+                                    .emit("hotkey://transcription-complete", &result.text);
+                            }
+                            Err(e) => {
+                                tracing::error!("Hotkey transcription failed: {}", e);
+                                let _ =
+                                    app_handle.emit("hotkey://transcription-error", e.to_string());
+                            }
+                        }
+                    });
                 }
             }
         });
