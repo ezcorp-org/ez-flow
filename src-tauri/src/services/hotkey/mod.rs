@@ -2,8 +2,9 @@
 //!
 //! Handles global keyboard shortcuts for push-to-talk recording.
 
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use thiserror::Error;
@@ -33,6 +34,10 @@ pub enum HotkeyError {
     NotRegistered,
 }
 
+/// Minimum recording duration in milliseconds before release is processed
+/// This prevents accidental immediate release when pressing key combinations
+const MIN_RECORDING_DURATION_MS: u64 = 200;
+
 /// Hotkey service state
 pub struct HotkeyState {
     /// Currently registered hotkey string
@@ -43,6 +48,8 @@ pub struct HotkeyState {
     pub is_registered: Arc<AtomicBool>,
     /// Last error message if registration failed
     pub last_error: Arc<RwLock<Option<String>>>,
+    /// Timestamp when recording started (millis since epoch)
+    pub recording_start_time: Arc<AtomicU64>,
 }
 
 impl Default for HotkeyState {
@@ -52,8 +59,17 @@ impl Default for HotkeyState {
             is_hotkey_recording: Arc::new(AtomicBool::new(false)),
             is_registered: Arc::new(AtomicBool::new(false)),
             last_error: Arc::new(RwLock::new(None)),
+            recording_start_time: Arc::new(AtomicU64::new(0)),
         }
     }
+}
+
+/// Get current time in milliseconds since epoch
+fn current_time_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 /// Get the default hotkey for the current platform
@@ -87,6 +103,7 @@ pub fn register_hotkey<R: Runtime>(
     let shortcut = parse_shortcut(hotkey)?;
 
     let is_recording = state.is_hotkey_recording.clone();
+    let recording_start_time = state.recording_start_time.clone();
 
     // Register with the global shortcut manager
     let result = app
@@ -96,6 +113,8 @@ pub fn register_hotkey<R: Runtime>(
                 if !is_recording.load(Ordering::SeqCst) {
                     tracing::info!("Hotkey pressed - starting recording");
                     is_recording.store(true, Ordering::SeqCst);
+                    // Store the start time
+                    recording_start_time.store(current_time_ms(), Ordering::SeqCst);
 
                     // Actually start recording
                     let audio_state = app.state::<AudioState>();
@@ -127,7 +146,20 @@ pub fn register_hotkey<R: Runtime>(
             }
             ShortcutState::Released => {
                 if is_recording.load(Ordering::SeqCst) {
-                    tracing::info!("Hotkey released - stopping recording");
+                    // Check if minimum recording duration has passed
+                    let start_time = recording_start_time.load(Ordering::SeqCst);
+                    let elapsed = current_time_ms().saturating_sub(start_time);
+
+                    if elapsed < MIN_RECORDING_DURATION_MS {
+                        tracing::debug!(
+                            "Ignoring early release ({}ms < {}ms minimum)",
+                            elapsed,
+                            MIN_RECORDING_DURATION_MS
+                        );
+                        return;
+                    }
+
+                    tracing::info!("Hotkey released after {}ms - stopping recording", elapsed);
                     is_recording.store(false, Ordering::SeqCst);
 
                     // Stop recording and transcribe
