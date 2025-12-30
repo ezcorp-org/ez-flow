@@ -51,6 +51,18 @@ pub fn run() {
             let hotkey_state = app.state::<commands::HotkeyState>();
             services::hotkey::setup_hotkey(app.handle(), &hotkey_state);
 
+            // Show main window on startup for model setup screen
+            // The frontend will show the ModelSetupScreen and then the app
+            if let Some(main_window) = app.get_webview_window("main") {
+                if let Err(e) = main_window.show() {
+                    tracing::error!("Failed to show main window: {}", e);
+                }
+                if let Err(e) = main_window.set_focus() {
+                    tracing::error!("Failed to focus main window: {}", e);
+                }
+                tracing::info!("Main window shown for model setup");
+            }
+
             tracing::info!("Application setup complete");
             Ok(())
         })
