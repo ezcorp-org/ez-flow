@@ -1,7 +1,7 @@
 import { test, expect, describe, beforeEach, mock } from 'bun:test';
 
 // Mock Tauri APIs with proper typing
-const mockInvoke = mock((_cmd: string, _args?: unknown) => Promise.resolve([] as unknown));
+const mockInvoke = mock(() => Promise.resolve([] as unknown));
 const mockWriteText = mock(() => Promise.resolve());
 
 mock.module('@tauri-apps/api/core', () => ({

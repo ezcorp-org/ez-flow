@@ -167,7 +167,7 @@ describe('NavBar Component Logic', () => {
 
 	describe('Error Handling', () => {
 		test('should handle null window gracefully', async () => {
-			const mockNullGetByLabel = mock((_label: string) => Promise.resolve(null));
+			const mockNullGetByLabel = mock(() => Promise.resolve(null));
 
 			mock.module('@tauri-apps/api/webviewWindow', () => ({
 				WebviewWindow: {
@@ -188,12 +188,12 @@ describe('NavBar Component Logic', () => {
 		});
 
 		test('should catch and log errors', async () => {
-			const mockErrorGetByLabel = mock((_label: string) => Promise.reject(new Error('Window not found')));
+			const mockErrorGetByLabel = mock(() => Promise.reject(new Error('Window not found')));
 
 			const consoleSpy = spyOn(console, 'error').mockImplementation(() => {});
 
 			try {
-				await mockErrorGetByLabel('invalid');
+				await mockErrorGetByLabel();
 			} catch (error) {
 				console.error('Navigation error:', error);
 			}

@@ -8,7 +8,7 @@
 	import ModelSetupScreen from '$lib/components/ModelSetupScreen.svelte';
 	import FileDropZone from '$lib/components/FileDropZone.svelte';
 
-	let historyList: HistoryList;
+	let historyList = $state<HistoryList | null>(null);
 	let lastTranscription = $state<string | null>(null);
 	let lastTranscriptionFilename = $state<string | null>(null);
 	let error = $state<string | null>(null);

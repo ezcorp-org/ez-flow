@@ -589,7 +589,6 @@
 		margin-bottom: 0.5rem;
 	}
 
-	.setting-input,
 	.setting-select {
 		width: 100%;
 		max-width: 300px;
@@ -601,7 +600,6 @@
 		font-size: 0.875rem;
 	}
 
-	.setting-input:focus,
 	.setting-select:focus {
 		outline: none;
 		border-color: #f4c430;
@@ -843,14 +841,6 @@
 		align-items: center;
 		gap: 0.5rem;
 		flex-shrink: 0;
-	}
-
-	.downloaded-badge {
-		font-size: 0.75rem;
-		color: #22c55e;
-		background: rgba(34, 197, 94, 0.1);
-		padding: 0.25rem 0.5rem;
-		border-radius: 4px;
 	}
 
 	.active-badge {

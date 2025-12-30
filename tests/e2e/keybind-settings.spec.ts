@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { testIds, waitForAppReady, openSettings } from './helpers';
+import { waitForAppReady, openSettings } from './helpers';
 
 /**
  * E2E Tests for Keybind Settings UI

@@ -101,7 +101,7 @@ describe('Model Management Logic', () => {
 		});
 
 		test('should handle deleting last model gracefully', () => {
-			let downloadedIds = ['tiny'];
+			const downloadedIds = ['tiny'];
 			const activeModelId = 'tiny';
 
 			// Cannot delete the only/active model
@@ -349,11 +349,11 @@ describe('Model State Management', () => {
 	});
 
 	test('should not change active model when deleting non-active model', () => {
-		let downloadedIds = ['tiny', 'base', 'small'];
-		let activeModelId = 'tiny';
+		const initialDownloadedIds = ['tiny', 'base', 'small'];
+		const activeModelId = 'tiny';
 
 		// Delete non-active model
-		downloadedIds = downloadedIds.filter((id) => id !== 'base');
+		const downloadedIds = initialDownloadedIds.filter((id) => id !== 'base');
 
 		// Active model should remain unchanged
 		expect(activeModelId).toBe('tiny');

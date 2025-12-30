@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test';
-import { testIds } from './helpers';
 
 /**
  * File Drop Zone E2E Tests
@@ -221,8 +220,6 @@ test.describe('File Drop Zone', () => {
 				el.dispatchEvent(dropEvent);
 			});
 
-			// Should show processing state (may be brief)
-			const processingState = page.locator('[data-testid="file-processing"]');
 			// Processing might be too fast to catch, so we just check if it appeared or result appeared
 			const resultOrProcessing = page.locator(
 				'[data-testid="file-processing"], [data-testid="file-transcription-result"], [data-testid="file-transcription-error"]'
@@ -254,9 +251,7 @@ test.describe('File Drop Zone', () => {
 				el.dispatchEvent(dropEvent);
 			});
 
-			// Check for progress bar (may be brief)
-			const progressBar = page.locator('.progress-bar');
-			// Either we catch the progress bar or the final state
+			// Either we catch the progress bar or the final state (progress bar may be brief)
 			await page.waitForSelector(
 				'[data-testid="file-processing"], [data-testid="file-transcription-result"], [data-testid="file-transcription-error"]',
 				{ timeout: 30000 }
