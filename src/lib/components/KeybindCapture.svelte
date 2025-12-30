@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { formatHotkey, checkHotkeyAvailable } from '$lib/services/hotkeys';
 	import {
 		normalizeKeyboardEventKey,
@@ -31,21 +32,8 @@
 			: formatHotkey(value)
 	);
 
-	function startCapture() {
-		if (disabled) return;
-		isCapturing = true;
-		capturedKeys = [];
-		activeModifiers = new Set();
-		error = null;
-	}
-
-	function cancelCapture() {
-		isCapturing = false;
-		capturedKeys = [];
-		activeModifiers = new Set();
-	}
-
-	function handleKeyDown(e: KeyboardEvent) {
+	// Global keyboard event handlers - attached to document during capture
+	function globalKeyDown(e: KeyboardEvent) {
 		if (!isCapturing) return;
 
 		e.preventDefault();
@@ -70,7 +58,7 @@
 		}
 	}
 
-	function handleKeyUp(e: KeyboardEvent) {
+	function globalKeyUp(e: KeyboardEvent) {
 		if (!isCapturing) return;
 
 		e.preventDefault();
@@ -79,7 +67,7 @@
 		const normalizedKey = normalizeKeyboardEventKey(e);
 		if (!normalizedKey) return;
 
-		// Remove modifier from active set - must reassign Set to trigger Svelte 5 reactivity
+		// Remove modifier from active set
 		if (isModifierKey(normalizedKey)) {
 			activeModifiers = new Set([...activeModifiers].filter(k => k !== normalizedKey));
 			// If we have captured keys with a non-modifier, finalize
@@ -89,6 +77,31 @@
 				updateCapturedKeys();
 			}
 		}
+	}
+
+	function startCapture() {
+		if (disabled) return;
+		isCapturing = true;
+		capturedKeys = [];
+		activeModifiers = new Set();
+		error = null;
+
+		// Add global event listeners during capture
+		document.addEventListener('keydown', globalKeyDown, true);
+		document.addEventListener('keyup', globalKeyUp, true);
+	}
+
+	function stopCapture() {
+		// Remove global event listeners
+		document.removeEventListener('keydown', globalKeyDown, true);
+		document.removeEventListener('keyup', globalKeyUp, true);
+	}
+
+	function cancelCapture() {
+		stopCapture();
+		isCapturing = false;
+		capturedKeys = [];
+		activeModifiers = new Set();
 	}
 
 	function updateCapturedKeys(nonModifierKey?: string) {
@@ -132,6 +145,7 @@
 			}
 
 			// Hotkey is valid - notify parent
+			stopCapture();
 			isCapturing = false;
 			activeModifiers = new Set();
 			onchange?.(hotkeyString);
@@ -143,11 +157,20 @@
 		}
 	}
 
-	function handleBlur() {
+	function handleClick() {
 		if (isCapturing) {
 			cancelCapture();
+		} else {
+			startCapture();
 		}
 	}
+
+	// Cleanup on component destroy
+	onDestroy(() => {
+		if (isCapturing) {
+			stopCapture();
+		}
+	});
 </script>
 
 <div class="keybind-capture" data-testid="keybind-capture">
@@ -157,10 +180,7 @@
 		class:capturing={isCapturing}
 		class:error={!!error}
 		class:disabled={disabled}
-		onclick={startCapture}
-		onkeydown={handleKeyDown}
-		onkeyup={handleKeyUp}
-		onblur={handleBlur}
+		onclick={handleClick}
 		disabled={disabled}
 		data-testid="keybind-button"
 	>
