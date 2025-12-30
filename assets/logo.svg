@@ -1,62 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <!-- Retro Corporate Style: Bold geometry, limited palette, 70s/80s tech aesthetic -->
+  <!-- Simple, minimal EZ Corp style logo -->
 
-  <!-- Outer ring - classic corporate badge -->
-  <circle cx="100" cy="100" r="96" fill="none" stroke="#1e3a5f" stroke-width="8"/>
+  <!-- Dark circle background -->
+  <circle cx="100" cy="100" r="95" fill="#0A0A0A"/>
 
-  <!-- Inner filled circle - warm cream/off-white retro background -->
-  <circle cx="100" cy="100" r="88" fill="#fef9f3"/>
+  <!-- Yellow accent ring -->
+  <circle cx="100" cy="100" r="95" fill="none" stroke="#F4C430" stroke-width="6"/>
 
-  <!-- Bottom accent arc - retro orange -->
-  <path
-    d="M 20 130
-       A 85 85 0 0 0 180 130"
-    fill="none"
-    stroke="#e85d04"
-    stroke-width="8"
-    stroke-linecap="round"
-    transform="rotate(180 100 100)"
-  />
+  <!-- Minimal microphone shape - just the essential form -->
+  <rect x="80" y="50" width="40" height="60" rx="20" fill="#F4C430"/>
 
-  <!-- Stylized microphone head - bold geometric pill shape -->
-  <rect x="70" y="45" width="36" height="55" rx="18" fill="#1e3a5f"/>
-
-  <!-- Microphone grille lines - retro detail -->
-  <line x1="76" y1="58" x2="100" y2="58" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
-  <line x1="76" y1="68" x2="100" y2="68" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
-  <line x1="76" y1="78" x2="100" y2="78" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
-
-  <!-- Microphone stem -->
-  <rect x="82" y="100" width="12" height="20" fill="#1e3a5f"/>
-
-  <!-- Microphone base -->
-  <rect x="70" y="118" width="36" height="8" rx="2" fill="#1e3a5f"/>
-
-  <!-- Sound waves becoming text lines - the transformation -->
-  <!-- Wave 1 - curved, more "audio" -->
-  <path
-    d="M115 55 Q125 50 135 55 Q145 60 155 55"
-    stroke="#e85d04"
-    stroke-width="6"
-    stroke-linecap="round"
-    fill="none"
-  />
-
-  <!-- Wave 2 - less curved, transitioning -->
-  <path
-    d="M115 75 Q125 72 140 75 L160 75"
-    stroke="#e85d04"
-    stroke-width="6"
-    stroke-linecap="round"
-    fill="none"
-  />
-
-  <!-- Line 3 - straight, it's now "text" -->
-  <line x1="115" y1="95" x2="170" y2="95" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
-
-  <!-- Line 4 - text line -->
-  <line x1="115" y1="115" x2="160" y2="115" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
-
-  <!-- Line 5 - shorter text line -->
-  <line x1="115" y1="135" x2="145" y2="135" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
+  <!-- Simple stand -->
+  <line x1="100" y1="110" x2="100" y2="140" stroke="#F4C430" stroke-width="8" stroke-linecap="round"/>
+  <line x1="75" y1="140" x2="125" y2="140" stroke="#F4C430" stroke-width="8" stroke-linecap="round"/>
 </svg>
