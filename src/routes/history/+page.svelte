@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { invoke } from '@tauri-apps/api/core';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 	import NavBar from '$lib/components/NavBar.svelte';
 
@@ -20,8 +21,28 @@
 	let loading = $state(true);
 	let showClearConfirm = $state(false);
 
+	const unlisteners: UnlistenFn[] = [];
+
 	onMount(async () => {
 		await loadHistory();
+
+		// Listen for new transcriptions from hotkey
+		unlisteners.push(
+			await listen('hotkey://transcription-complete', async () => {
+				await loadHistory();
+			})
+		);
+
+		// Listen for new transcriptions from tray
+		unlisteners.push(
+			await listen('tray://transcription-complete', async () => {
+				await loadHistory();
+			})
+		);
+	});
+
+	onDestroy(() => {
+		unlisteners.forEach((unlisten) => unlisten());
 	});
 
 	async function loadHistory() {

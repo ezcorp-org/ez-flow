@@ -27,10 +27,18 @@
 		}
 		checkingModel = false;
 
-		// Listen for transcription complete events from tray/hotkey
+		// Listen for transcription complete events from tray
 		unlisteners.push(
 			await listen<string>('tray://transcription-complete', async () => {
 				// Refresh history when transcription completes from tray
+				await historyList?.refresh();
+			})
+		);
+
+		// Listen for transcription complete events from hotkey
+		unlisteners.push(
+			await listen<string>('hotkey://transcription-complete', async () => {
+				// Refresh history when transcription completes from hotkey
 				await historyList?.refresh();
 			})
 		);
