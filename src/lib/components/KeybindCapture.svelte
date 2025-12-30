@@ -60,9 +60,9 @@
 		const normalizedKey = normalizeKeyboardEventKey(e);
 		if (!normalizedKey) return;
 
-		// Track modifiers
+		// Track modifiers - must reassign Set to trigger Svelte 5 reactivity
 		if (isModifierKey(normalizedKey)) {
-			activeModifiers.add(normalizedKey);
+			activeModifiers = new Set([...activeModifiers, normalizedKey]);
 			updateCapturedKeys();
 		} else {
 			// Non-modifier key pressed - finalize the combination
@@ -79,9 +79,9 @@
 		const normalizedKey = normalizeKeyboardEventKey(e);
 		if (!normalizedKey) return;
 
-		// Remove modifier from active set
+		// Remove modifier from active set - must reassign Set to trigger Svelte 5 reactivity
 		if (isModifierKey(normalizedKey)) {
-			activeModifiers.delete(normalizedKey);
+			activeModifiers = new Set([...activeModifiers].filter(k => k !== normalizedKey));
 			// If we have captured keys with a non-modifier, finalize
 			if (capturedKeys.length > 0 && !capturedKeys.every((k) => isModifierKey(k))) {
 				finalizeCapturedKeys();
