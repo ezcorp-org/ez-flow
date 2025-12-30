@@ -1,29 +1,9 @@
 import './app.css';
-import { mount, unmount } from 'svelte';
+import { mount } from 'svelte';
 import { initTrayEventListeners } from './lib/services/trayEvents';
 
 // Simple path-based routing for Tauri windows
 const path = window.location.pathname;
-
-/**
- * Show the model setup screen on startup
- * This ensures the user always sees the current model status and can change/download if needed
- */
-async function showModelSetupScreen(target: HTMLElement): Promise<void> {
-  const { default: ModelSetupScreen } = await import('./lib/components/ModelSetupScreen.svelte');
-
-  return new Promise((resolve) => {
-    const setupInstance = mount(ModelSetupScreen, {
-      target,
-      props: {
-        onComplete: () => {
-          unmount(setupInstance);
-          resolve();
-        }
-      }
-    });
-  });
-}
 
 async function init() {
   const target = document.getElementById('app')!;
@@ -36,10 +16,7 @@ async function init() {
     } catch (e) {
       console.error('Failed to init tray listeners:', e);
     }
-
-    // Always show model setup screen on main window startup
-    // This ensures the user can see model status and download if needed
-    await showModelSetupScreen(target);
+    // Model check is now handled inside App.svelte
   }
 
   if (path === '/settings' || path === '/settings/') {

@@ -1,16 +1,30 @@
 <script lang="ts">
 	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
+	import { invoke } from '@tauri-apps/api/core';
 	import { onMount, onDestroy } from 'svelte';
 	import RecordButton from '$lib/components/RecordButton.svelte';
 	import HistoryList from '$lib/components/HistoryList.svelte';
 	import NavBar from '$lib/components/NavBar.svelte';
+	import ModelSetupScreen from '$lib/components/ModelSetupScreen.svelte';
 
 	let historyList: HistoryList;
 	let lastTranscription = $state<string | null>(null);
 	let error = $state<string | null>(null);
+	let checkingModel = $state(true);
+	let needsModelSetup = $state(false);
 	const unlisteners: UnlistenFn[] = [];
 
 	onMount(async () => {
+		// Check if any model is downloaded
+		try {
+			const downloadedModels = await invoke<string[]>('get_downloaded_model_ids');
+			needsModelSetup = downloadedModels.length === 0;
+		} catch (e) {
+			console.error('Failed to check models:', e);
+			needsModelSetup = true;
+		}
+		checkingModel = false;
+
 		// Listen for transcription complete events from tray/hotkey
 		unlisteners.push(
 			await listen<string>('tray://transcription-complete', async () => {
@@ -19,6 +33,10 @@
 			})
 		);
 	});
+
+	function handleModelSetupComplete() {
+		needsModelSetup = false;
+	}
 
 	onDestroy(() => {
 		unlisteners.forEach((unlisten) => unlisten());
@@ -50,6 +68,14 @@
 	}
 </script>
 
+{#if checkingModel}
+	<div class="loading-screen">
+		<div class="loading-spinner"></div>
+		<p>Loading...</p>
+	</div>
+{:else if needsModelSetup}
+	<ModelSetupScreen onComplete={handleModelSetupComplete} />
+{:else}
 <main class="app" data-testid="main-app">
 	<header class="header">
 		<div class="logo">
@@ -124,8 +150,34 @@
 
 	<NavBar />
 </main>
+{/if}
 
 <style>
+	.loading-screen {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		background: linear-gradient(180deg, #0a0a0a 0%, #171717 100%);
+		color: #737373;
+		gap: 1rem;
+	}
+
+	.loading-spinner {
+		width: 32px;
+		height: 32px;
+		border: 3px solid #262626;
+		border-top-color: #f4c430;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+	}
+
+	@keyframes spin {
+		to {
+			transform: rotate(360deg);
+		}
+	}
 	.app {
 		min-height: 100vh;
 		background: linear-gradient(180deg, #0a0a0a 0%, #171717 100%);

@@ -1,19 +1,93 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { settings, type RecordingMode, type IndicatorPosition } from '$lib/stores/settings';
 	import { invoke } from '@tauri-apps/api/core';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import NavBar from '$lib/components/NavBar.svelte';
+
+	interface ModelInfo {
+		id: string;
+		name: string;
+		size_mb: number;
+		description: string;
+	}
 
 	let advancedExpanded = $state(false);
 	let showResetConfirm = $state(false);
 	let importExportStatus = $state<string | null>(null);
 
-	// Load settings on mount
-	onMount(() => {
+	// Model management state
+	let availableModels = $state<ModelInfo[]>([]);
+	let downloadedModelIds = $state<string[]>([]);
+	let downloadingModelId = $state<string | null>(null);
+	let downloadProgress = $state(0);
+	let modelError = $state<string | null>(null);
+	let unlisteners: UnlistenFn[] = [];
+
+	// Load settings and model info on mount
+	onMount(async () => {
 		settings.init();
+		await loadModelInfo();
+
+		// Listen for download progress events
+		unlisteners.push(
+			await listen<{ progress: number }>('model-download-progress', (event) => {
+				downloadProgress = event.payload.progress;
+			})
+		);
 	});
+
+	onDestroy(() => {
+		unlisteners.forEach((unlisten) => unlisten());
+	});
+
+	async function loadModelInfo() {
+		try {
+			availableModels = await invoke<ModelInfo[]>('get_available_models');
+			downloadedModelIds = await invoke<string[]>('get_downloaded_model_ids');
+		} catch (e) {
+			console.error('Failed to load model info:', e);
+		}
+	}
+
+	async function downloadModel(modelId: string) {
+		if (downloadingModelId) return;
+		downloadingModelId = modelId;
+		downloadProgress = 0;
+		modelError = null;
+
+		try {
+			await invoke('download_model', { modelId });
+			downloadedModelIds = [...downloadedModelIds, modelId];
+		} catch (e) {
+			modelError = `Failed to download model: ${e}`;
+			setTimeout(() => (modelError = null), 5000);
+		} finally {
+			downloadingModelId = null;
+			downloadProgress = 0;
+		}
+	}
+
+	async function deleteModel(modelId: string) {
+		modelError = null;
+		try {
+			await invoke('delete_downloaded_model', { modelId });
+			downloadedModelIds = downloadedModelIds.filter((id) => id !== modelId);
+			// If this was the selected model, switch to another downloaded model
+			if ($settings.model_id === modelId && downloadedModelIds.length > 0) {
+				await settings.updateField('model_id', downloadedModelIds[0]);
+			}
+		} catch (e) {
+			modelError = `Failed to delete model: ${e}`;
+			setTimeout(() => (modelError = null), 5000);
+		}
+	}
+
+	function isModelDownloaded(modelId: string): boolean {
+		return downloadedModelIds.includes(modelId);
+	}
 
 	// Handle hotkey change
 	async function handleHotkeyChange(e: Event) {
@@ -211,18 +285,22 @@
 		<h2 class="section-title">Transcription</h2>
 
 		<div class="setting-item">
-			<label class="setting-label" for="model">Model</label>
+			<label class="setting-label" for="model">Active Model</label>
 			<select
 				id="model"
 				data-testid="model-selector"
 				class="setting-select"
 				value={$settings.model_id}
 				onchange={handleModelChange}
+				disabled={downloadedModelIds.length === 0}
 			>
-				{#each models as model}
+				{#each models.filter((m) => isModelDownloaded(m.id)) as model}
 					<option value={model.id}>{model.name}</option>
 				{/each}
 			</select>
+			{#if downloadedModelIds.length === 0}
+				<p class="setting-description warning">No models downloaded. Download a model below.</p>
+			{/if}
 		</div>
 
 		<div class="setting-item">
@@ -238,6 +316,60 @@
 					<option value={lang.code}>{lang.name}</option>
 				{/each}
 			</select>
+		</div>
+	</section>
+
+	<!-- Model Management Section -->
+	<section class="settings-section">
+		<h2 class="section-title">Model Management</h2>
+		<p class="section-description">Download or remove speech recognition models</p>
+
+		{#if modelError}
+			<div class="model-error">{modelError}</div>
+		{/if}
+
+		<div class="models-list">
+			{#each availableModels as model}
+				<div class="model-item" class:downloaded={isModelDownloaded(model.id)} class:active={$settings.model_id === model.id}>
+					<div class="model-info">
+						<span class="model-name">{model.name}</span>
+						<span class="model-size">{model.size_mb}MB</span>
+						<p class="model-description">{model.description}</p>
+					</div>
+					<div class="model-actions">
+						{#if downloadingModelId === model.id}
+							<div class="download-progress">
+								<div class="progress-bar">
+									<div class="progress-fill" style="width: {downloadProgress}%"></div>
+								</div>
+								<span class="progress-text">{Math.round(downloadProgress)}%</span>
+							</div>
+						{:else if isModelDownloaded(model.id)}
+							<span class="downloaded-badge">Downloaded</span>
+							{#if $settings.model_id === model.id}
+								<span class="active-badge">Active</span>
+							{:else}
+								<button
+									class="delete-model-button"
+									onclick={() => deleteModel(model.id)}
+									data-testid="delete-model-{model.id}"
+								>
+									Remove
+								</button>
+							{/if}
+						{:else}
+							<button
+								class="download-model-button"
+								onclick={() => downloadModel(model.id)}
+								disabled={downloadingModelId !== null}
+								data-testid="download-model-{model.id}"
+							>
+								Download
+							</button>
+						{/if}
+					</div>
+				</div>
+			{/each}
 		</div>
 	</section>
 
@@ -611,5 +743,162 @@
 
 	.status-message.error {
 		color: #ef4444;
+	}
+
+	/* Model Management Styles */
+	.section-description {
+		font-size: 0.875rem;
+		color: #737373;
+		margin-bottom: 1rem;
+	}
+
+	.setting-description.warning {
+		color: #f59e0b;
+	}
+
+	.model-error {
+		background: rgba(239, 68, 68, 0.1);
+		border: 1px solid rgba(239, 68, 68, 0.3);
+		color: #ef4444;
+		padding: 0.75rem;
+		border-radius: 6px;
+		margin-bottom: 1rem;
+		font-size: 0.875rem;
+	}
+
+	.models-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.model-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 1rem;
+		background: #171717;
+		border: 1px solid #262626;
+		border-radius: 8px;
+		gap: 1rem;
+	}
+
+	.model-item.downloaded {
+		border-color: #22c55e33;
+	}
+
+	.model-item.active {
+		border-color: #f4c43066;
+		background: rgba(244, 196, 48, 0.05);
+	}
+
+	.model-info {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.model-name {
+		font-weight: 500;
+		color: #e5e5e5;
+	}
+
+	.model-size {
+		font-size: 0.75rem;
+		color: #737373;
+		margin-left: 0.5rem;
+	}
+
+	.model-description {
+		font-size: 0.75rem;
+		color: #737373;
+		margin: 0.25rem 0 0 0;
+	}
+
+	.model-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		flex-shrink: 0;
+	}
+
+	.downloaded-badge {
+		font-size: 0.75rem;
+		color: #22c55e;
+		background: rgba(34, 197, 94, 0.1);
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+	}
+
+	.active-badge {
+		font-size: 0.75rem;
+		color: #f4c430;
+		background: rgba(244, 196, 48, 0.1);
+		padding: 0.25rem 0.5rem;
+		border-radius: 4px;
+	}
+
+	.download-model-button {
+		padding: 0.375rem 0.75rem;
+		background: #f4c430;
+		border: none;
+		border-radius: 4px;
+		color: #000;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+	}
+
+	.download-model-button:hover:not(:disabled) {
+		background: #eab308;
+	}
+
+	.download-model-button:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.delete-model-button {
+		padding: 0.375rem 0.75rem;
+		background: #404040;
+		border: none;
+		border-radius: 4px;
+		color: #e5e5e5;
+		font-size: 0.8125rem;
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+	}
+
+	.delete-model-button:hover {
+		background: #7f1d1d;
+		color: #fecaca;
+	}
+
+	.download-progress {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 120px;
+	}
+
+	.progress-bar {
+		flex: 1;
+		height: 6px;
+		background: #262626;
+		border-radius: 3px;
+		overflow: hidden;
+	}
+
+	.progress-fill {
+		height: 100%;
+		background: #f4c430;
+		transition: width 0.3s ease;
+	}
+
+	.progress-text {
+		font-size: 0.75rem;
+		color: #737373;
+		min-width: 35px;
+		text-align: right;
 	}
 </style>

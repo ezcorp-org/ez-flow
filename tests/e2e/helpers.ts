@@ -36,6 +36,10 @@ export const testIds = {
   modelOption: (id: string) => `model-option-${id}`,
   downloadProgress: 'download-progress',
   activeModel: 'active-model',
+  downloadModelButton: (id: string) => `download-model-${id}`,
+  deleteModelButton: (id: string) => `delete-model-${id}`,
+  modelSetupScreen: 'model-setup-screen',
+  mainApp: 'main-app',
 
   // Settings
   settingsButton: 'settings-button',
