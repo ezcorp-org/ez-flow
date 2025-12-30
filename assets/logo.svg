@@ -1,30 +1,62 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">
-  <defs>
-    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6366f1"/>
-      <stop offset="100%" style="stop-color:#8b5cf6"/>
-    </linearGradient>
-    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.9"/>
-      <stop offset="100%" style="stop-color:#e0e7ff;stop-opacity:0.9"/>
-    </linearGradient>
-  </defs>
+  <!-- Retro Corporate Style: Bold geometry, limited palette, 70s/80s tech aesthetic -->
 
-  <!-- Background circle -->
-  <circle cx="100" cy="100" r="90" fill="url(#bgGradient)"/>
+  <!-- Outer ring - classic corporate badge -->
+  <circle cx="100" cy="100" r="96" fill="none" stroke="#1e3a5f" stroke-width="8"/>
 
-  <!-- Microphone body -->
-  <rect x="75" y="50" width="50" height="70" rx="25" fill="url(#waveGradient)"/>
+  <!-- Inner filled circle - warm cream/off-white retro background -->
+  <circle cx="100" cy="100" r="88" fill="#fef9f3"/>
 
-  <!-- Microphone stand -->
-  <path d="M100 120 L100 150" stroke="url(#waveGradient)" stroke-width="8" stroke-linecap="round"/>
-  <path d="M70 150 L130 150" stroke="url(#waveGradient)" stroke-width="8" stroke-linecap="round"/>
+  <!-- Bottom accent arc - retro orange -->
+  <path
+    d="M 20 130
+       A 85 85 0 0 0 180 130"
+    fill="none"
+    stroke="#e85d04"
+    stroke-width="8"
+    stroke-linecap="round"
+    transform="rotate(180 100 100)"
+  />
 
-  <!-- Sound waves -->
-  <path d="M145 75 Q160 100 145 125" stroke="url(#waveGradient)" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.8"/>
-  <path d="M160 60 Q185 100 160 140" stroke="url(#waveGradient)" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <!-- Stylized microphone head - bold geometric pill shape -->
+  <rect x="70" y="45" width="36" height="55" rx="18" fill="#1e3a5f"/>
 
-  <!-- Left sound waves -->
-  <path d="M55 75 Q40 100 55 125" stroke="url(#waveGradient)" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.8"/>
-  <path d="M40 60 Q15 100 40 140" stroke="url(#waveGradient)" stroke-width="5" fill="none" stroke-linecap="round" opacity="0.5"/>
+  <!-- Microphone grille lines - retro detail -->
+  <line x1="76" y1="58" x2="100" y2="58" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
+  <line x1="76" y1="68" x2="100" y2="68" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
+  <line x1="76" y1="78" x2="100" y2="78" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Microphone stem -->
+  <rect x="82" y="100" width="12" height="20" fill="#1e3a5f"/>
+
+  <!-- Microphone base -->
+  <rect x="70" y="118" width="36" height="8" rx="2" fill="#1e3a5f"/>
+
+  <!-- Sound waves becoming text lines - the transformation -->
+  <!-- Wave 1 - curved, more "audio" -->
+  <path
+    d="M115 55 Q125 50 135 55 Q145 60 155 55"
+    stroke="#e85d04"
+    stroke-width="6"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- Wave 2 - less curved, transitioning -->
+  <path
+    d="M115 75 Q125 72 140 75 L160 75"
+    stroke="#e85d04"
+    stroke-width="6"
+    stroke-linecap="round"
+    fill="none"
+  />
+
+  <!-- Line 3 - straight, it's now "text" -->
+  <line x1="115" y1="95" x2="170" y2="95" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Line 4 - text line -->
+  <line x1="115" y1="115" x2="160" y2="115" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- Line 5 - shorter text line -->
+  <line x1="115" y1="135" x2="145" y2="135" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
 </svg>
