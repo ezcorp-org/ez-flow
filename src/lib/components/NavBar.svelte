@@ -2,70 +2,59 @@
 	import { onMount } from 'svelte';
 
 	interface NavItem {
-		windowLabel: string;
+		id: string;
 		path: string;
 		label: string;
 		icon: string;
 	}
 
 	const navItems: NavItem[] = [
-		{ windowLabel: 'main', path: '/', label: 'Home', icon: 'home' },
-		{ windowLabel: 'history', path: '/history', label: 'History', icon: 'history' },
-		{ windowLabel: 'settings', path: '/settings', label: 'Settings', icon: 'settings' }
+		{ id: 'main', path: '/', label: 'Home', icon: 'home' },
+		{ id: 'history', path: '/history', label: 'History', icon: 'history' },
+		{ id: 'settings', path: '/settings', label: 'Settings', icon: 'settings' }
 	];
 
-	let currentWindowLabel = $state('main');
+	let currentPage = $state('main');
 	let isTauri = $state(false);
 
-	onMount(async () => {
+	onMount(() => {
 		// Check if running in Tauri environment
 		isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-		if (isTauri) {
-			try {
-				const { getCurrentWindow } = await import('@tauri-apps/api/window');
-				currentWindowLabel = getCurrentWindow().label;
-			} catch {
-				// Fallback to path-based detection
-				detectCurrentPage();
-			}
-		} else {
-			// Browser mode - detect from URL
-			detectCurrentPage();
-		}
+		// Always use path-based detection - works in both Tauri and browser
+		detectCurrentPage();
 	});
 
 	function detectCurrentPage() {
 		const path = window.location.pathname;
-		if (path === '/' || path === '') {
-			currentWindowLabel = 'main';
-		} else if (path.startsWith('/history')) {
-			currentWindowLabel = 'history';
+		if (path.startsWith('/history')) {
+			currentPage = 'history';
 		} else if (path.startsWith('/settings')) {
-			currentWindowLabel = 'settings';
+			currentPage = 'settings';
+		} else {
+			currentPage = 'main';
 		}
 	}
 
 	async function navigateTo(item: NavItem) {
-		if (item.windowLabel === currentWindowLabel) return;
+		if (item.id === currentPage) return;
 
 		if (isTauri) {
 			try {
 				const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
 				const { getCurrentWindow } = await import('@tauri-apps/api/window');
 
-				const targetWindow = await WebviewWindow.getByLabel(item.windowLabel);
+				const targetWindow = await WebviewWindow.getByLabel(item.id);
 				if (targetWindow) {
 					await targetWindow.show();
 					await targetWindow.setFocus();
 
 					// Hide current window (except main)
-					if (currentWindowLabel !== 'main') {
+					if (currentPage !== 'main') {
 						const currentWin = getCurrentWindow();
 						await currentWin.hide();
 					}
 				} else {
-					console.error(`Window '${item.windowLabel}' not found`);
 					// Fallback to URL navigation
 					window.location.href = item.path;
 				}
@@ -86,7 +75,7 @@
 		{#each navItems as item}
 			<button
 				class="nav-item"
-				class:active={item.windowLabel === currentWindowLabel}
+				class:active={item.id === currentPage}
 				onclick={() => navigateTo(item)}
 				data-testid="nav-{item.icon}"
 			>
