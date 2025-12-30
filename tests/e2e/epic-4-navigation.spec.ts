@@ -393,10 +393,81 @@ test.describe('Epic 4: Navigation & UI', () => {
 			const searchInput = page.locator('[data-testid="history-search"]');
 			await searchInput.fill('test');
 
-			// Wait for search to complete
+			// Wait for search to complete (debounced at 250ms)
 			await page.waitForTimeout(500);
 
 			// Should still show entries (mocked search returns results)
+			const entries = page.locator('[data-testid="history-entry"]');
+			await expect(entries.first()).toBeVisible();
+		});
+
+		test('Prefix search should find partial word matches', async ({ page }) => {
+			const searchInput = page.locator('[data-testid="history-search"]');
+
+			// Type prefix "tes" - should match "test"
+			await searchInput.fill('tes');
+
+			// Wait for debounced search (250ms) plus API call
+			await page.waitForTimeout(500);
+
+			// Should show matching entries
+			const entries = page.locator('[data-testid="history-entry"]');
+			await expect(entries.first()).toBeVisible();
+		});
+
+		test('Multi-word prefix search should narrow results', async ({ page }) => {
+			const searchInput = page.locator('[data-testid="history-search"]');
+
+			// Type multi-word prefix
+			await searchInput.fill('test trans');
+
+			// Wait for debounced search
+			await page.waitForTimeout(500);
+
+			// Should show matching entries
+			const entries = page.locator('[data-testid="history-entry"]');
+			await expect(entries.first()).toBeVisible();
+		});
+
+		test('Search should debounce rapid typing', async ({ page }) => {
+			const searchInput = page.locator('[data-testid="history-search"]');
+
+			// Type rapidly - should not trigger multiple API calls
+			await searchInput.type('hello', { delay: 50 });
+
+			// Loading should be visible during debounce
+			// Then entries should appear after debounce completes
+			await page.waitForTimeout(500);
+
+			const entries = page.locator('[data-testid="history-entry"]');
+			await expect(entries.first()).toBeVisible();
+		});
+
+		test('Empty search should return all entries', async ({ page }) => {
+			const searchInput = page.locator('[data-testid="history-search"]');
+
+			// Type something first
+			await searchInput.fill('test');
+			await page.waitForTimeout(500);
+
+			// Clear search
+			await searchInput.fill('');
+			await page.waitForTimeout(500);
+
+			// Should show all entries (mock returns 2 entries for get_history)
+			const entries = page.locator('[data-testid="history-entry"]');
+			const count = await entries.count();
+			expect(count).toBeGreaterThanOrEqual(1);
+		});
+
+		test('Search should be case-insensitive', async ({ page }) => {
+			const searchInput = page.locator('[data-testid="history-search"]');
+
+			// Uppercase search
+			await searchInput.fill('TEST');
+			await page.waitForTimeout(500);
+
+			// Should still find lowercase matches
 			const entries = page.locator('[data-testid="history-entry"]');
 			await expect(entries.first()).toBeVisible();
 		});

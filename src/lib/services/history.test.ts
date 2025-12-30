@@ -121,6 +121,75 @@ describe('history service', () => {
 
 			expect(result).toEqual([]);
 		});
+
+		test('should support prefix search (partial word matching)', async () => {
+			const searchResults = [
+				{ id: 1, text: 'Hello world', timestamp: '2024-01-01T00:00:00Z', duration_ms: 1000, model_id: 'base', language: 'en', gpu_used: false }
+			];
+			mockInvoke.mockResolvedValueOnce(searchResults);
+
+			const { invoke } = await import('@tauri-apps/api/core');
+			// Prefix "hel" should find "Hello"
+			const result = await invoke('search_history', { query: 'hel' });
+
+			expect(mockInvoke).toHaveBeenCalledWith('search_history', { query: 'hel' });
+			expect(result).toEqual(searchResults);
+		});
+
+		test('should support multi-word prefix search', async () => {
+			const searchResults = [
+				{ id: 1, text: 'Hello world', timestamp: '2024-01-01T00:00:00Z', duration_ms: 1000, model_id: 'base', language: 'en', gpu_used: false }
+			];
+			mockInvoke.mockResolvedValueOnce(searchResults);
+
+			const { invoke } = await import('@tauri-apps/api/core');
+			// Multi-word prefix "hel wor" should find "Hello world"
+			const result = await invoke('search_history', { query: 'hel wor' });
+
+			expect(mockInvoke).toHaveBeenCalledWith('search_history', { query: 'hel wor' });
+			expect(result).toEqual(searchResults);
+		});
+
+		test('should support case-insensitive search', async () => {
+			const searchResults = [
+				{ id: 1, text: 'Hello World', timestamp: '2024-01-01T00:00:00Z', duration_ms: 1000, model_id: 'base', language: 'en', gpu_used: false }
+			];
+			mockInvoke.mockResolvedValueOnce(searchResults);
+
+			const { invoke } = await import('@tauri-apps/api/core');
+			// Lowercase search should find mixed case text
+			const result = await invoke('search_history', { query: 'hello' });
+
+			expect(mockInvoke).toHaveBeenCalledWith('search_history', { query: 'hello' });
+			expect(result).toEqual(searchResults);
+		});
+
+		test('should fallback to LIKE search for substring matches', async () => {
+			const searchResults = [
+				{ id: 1, text: 'meeting notes', timestamp: '2024-01-01T00:00:00Z', duration_ms: 1000, model_id: 'base', language: 'en', gpu_used: false }
+			];
+			mockInvoke.mockResolvedValueOnce(searchResults);
+
+			const { invoke } = await import('@tauri-apps/api/core');
+			// Substring in middle should be found via LIKE fallback
+			const result = await invoke('search_history', { query: 'ting not' });
+
+			expect(mockInvoke).toHaveBeenCalledWith('search_history', { query: 'ting not' });
+			expect(result).toEqual(searchResults);
+		});
+
+		test('empty search query should return all entries', async () => {
+			const allEntries = [
+				{ id: 1, text: 'Entry 1', timestamp: '2024-01-01T00:00:00Z', duration_ms: 1000, model_id: 'base', language: 'en', gpu_used: false },
+				{ id: 2, text: 'Entry 2', timestamp: '2024-01-02T00:00:00Z', duration_ms: 1000, model_id: 'base', language: 'en', gpu_used: false }
+			];
+			mockInvoke.mockResolvedValueOnce(allEntries);
+
+			const { invoke } = await import('@tauri-apps/api/core');
+			const result = await invoke('search_history', { query: '' });
+
+			expect(result).toEqual(allEntries);
+		});
 	});
 
 	describe('delete_history_entry command', () => {

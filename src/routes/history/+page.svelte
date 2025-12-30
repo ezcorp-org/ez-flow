@@ -22,6 +22,7 @@
 	let showClearConfirm = $state(false);
 
 	const unlisteners: UnlistenFn[] = [];
+	let searchTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
 	onMount(async () => {
 		await loadHistory();
@@ -43,6 +44,10 @@
 
 	onDestroy(() => {
 		unlisteners.forEach((unlisten) => unlisten());
+		// Clean up any pending search timeout
+		if (searchTimeoutId) {
+			clearTimeout(searchTimeoutId);
+		}
 	});
 
 	async function loadHistory() {
@@ -55,8 +60,7 @@
 		loading = false;
 	}
 
-	async function search() {
-		loading = true;
+	async function executeSearch() {
 		try {
 			if (searchQuery.trim()) {
 				entries = await invoke<HistoryEntry[]>('search_history', { query: searchQuery });
@@ -67,6 +71,21 @@
 			console.error('Failed to search history:', error);
 		}
 		loading = false;
+	}
+
+	function handleSearchInput() {
+		// Show loading immediately for user feedback
+		loading = true;
+
+		// Cancel any pending search
+		if (searchTimeoutId) {
+			clearTimeout(searchTimeoutId);
+		}
+
+		// Debounce: wait 250ms before executing search
+		searchTimeoutId = setTimeout(() => {
+			executeSearch();
+		}, 250);
 	}
 
 	async function copyEntry(entry: HistoryEntry) {
@@ -145,7 +164,7 @@
 			type="text"
 			class="search-input"
 			bind:value={searchQuery}
-			oninput={search}
+			oninput={handleSearchInput}
 			placeholder="Search transcriptions..."
 			data-testid="history-search"
 		/>
