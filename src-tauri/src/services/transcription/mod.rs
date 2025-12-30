@@ -21,7 +21,7 @@ use thiserror::Error;
 use std::path::PathBuf;
 
 /// Transcription result
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TranscriptionResult {
     /// Transcribed text
     pub text: String,

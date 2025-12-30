@@ -6,15 +6,17 @@
 //! for audio operations and communicate via channels.
 
 use crate::commands::TranscriptionState;
+use crate::models::HistoryEntry;
 use crate::services::audio::{
     capture::save_to_temp_wav,
     processing::{calculate_audio_level, resample_for_whisper},
     AudioCaptureService, AudioDevice, AudioError, PermissionStatus, RecordingResult,
 };
 use crate::services::audio::processing::AudioBuffer;
-use crate::services::storage::SettingsState;
+use crate::services::storage::{DatabaseState, SettingsState};
 use crate::services::transcription::TranscriptionResult;
 use crate::services::ui::indicator::emit_audio_level;
+use chrono::Utc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -373,6 +375,7 @@ pub async fn stop_recording_and_transcribe(
     audio_state: State<'_, AudioState>,
     transcription_state: State<'_, TranscriptionState>,
     settings_state: State<'_, SettingsState>,
+    database_state: State<'_, DatabaseState>,
 ) -> Result<TranscriptionResult, String> {
     let start = Instant::now();
 
@@ -422,6 +425,24 @@ pub async fn stop_recording_and_transcribe(
         text_length = result.text.len(),
         "Transcription completed"
     );
+
+    // Save to history
+    if let Some(db) = database_state.get() {
+        let entry = HistoryEntry {
+            id: 0,
+            text: result.text.clone(),
+            timestamp: Utc::now().to_rfc3339(),
+            duration_ms: result.duration_ms,
+            model_id: result.model_id.clone(),
+            language: result.language.clone(),
+            gpu_used: result.gpu_used,
+        };
+        if let Err(e) = db.insert_history(&entry).await {
+            tracing::error!("Failed to save transcription to history: {}", e);
+        } else {
+            tracing::debug!("Saved transcription to history");
+        }
+    }
 
     Ok(result)
 }

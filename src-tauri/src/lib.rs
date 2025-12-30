@@ -131,6 +131,7 @@ pub fn run() {
             commands::settings::is_gpu_available_cmd,
             commands::settings::get_supported_languages,
             // History commands
+            commands::history::save_history,
             commands::history::get_history,
             commands::history::search_history,
             commands::history::delete_history_entry,

@@ -4,7 +4,34 @@
 
 use crate::models::HistoryEntry;
 use crate::services::storage::DatabaseState;
+use crate::services::transcription::TranscriptionResult;
+use chrono::Utc;
 use tauri::State;
+
+/// Save a transcription result to history
+#[tauri::command]
+pub async fn save_history(
+    result: TranscriptionResult,
+    state: State<'_, DatabaseState>,
+) -> Result<i64, String> {
+    let db = state
+        .get()
+        .ok_or_else(|| "Database not available".to_string())?;
+
+    let entry = HistoryEntry {
+        id: 0, // Will be set by database
+        text: result.text,
+        timestamp: Utc::now().to_rfc3339(),
+        duration_ms: result.duration_ms,
+        model_id: result.model_id,
+        language: result.language,
+        gpu_used: result.gpu_used,
+    };
+
+    db.insert_history(&entry)
+        .await
+        .map_err(|e| e.to_string())
+}
 
 /// Get paginated history entries
 #[tauri::command]

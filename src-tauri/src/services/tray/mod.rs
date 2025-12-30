@@ -4,8 +4,10 @@
 
 use crate::commands::audio::{AudioCommand, AudioResponse, AudioState};
 use crate::commands::TranscriptionState;
+use crate::models::HistoryEntry;
 use crate::services::audio::processing::resample_for_whisper;
-use crate::services::storage::SettingsState;
+use crate::services::storage::{DatabaseState, SettingsState};
+use chrono::Utc;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
@@ -277,6 +279,25 @@ fn stop_recording_from_tray(app: &AppHandle<tauri::Wry>) {
             Ok(result) => {
                 tracing::info!("Transcription complete: {} chars", result.text.len());
 
+                // Save to history
+                let database_state = app_handle.state::<DatabaseState>();
+                if let Some(db) = database_state.get() {
+                    let entry = HistoryEntry {
+                        id: 0,
+                        text: result.text.clone(),
+                        timestamp: Utc::now().to_rfc3339(),
+                        duration_ms: result.duration_ms,
+                        model_id: result.model_id.clone(),
+                        language: result.language.clone(),
+                        gpu_used: result.gpu_used,
+                    };
+                    if let Err(e) = db.insert_history(&entry).await {
+                        tracing::error!("Failed to save transcription to history: {}", e);
+                    } else {
+                        tracing::debug!("Saved transcription to history");
+                    }
+                }
+
                 // Copy to clipboard directly in Rust
                 if !result.text.is_empty() {
                     if let Err(e) = app_handle.clipboard().write_text(&result.text) {
@@ -335,6 +356,25 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
                         match engine.transcribe_with_auto_load(samples, &model_id).await {
                             Ok(result) => {
                                 tracing::info!("File transcription complete: {} chars", result.text.len());
+
+                                // Save to history
+                                let database_state = app_for_emit.state::<DatabaseState>();
+                                if let Some(db) = database_state.get() {
+                                    let entry = HistoryEntry {
+                                        id: 0,
+                                        text: result.text.clone(),
+                                        timestamp: Utc::now().to_rfc3339(),
+                                        duration_ms: result.duration_ms,
+                                        model_id: result.model_id.clone(),
+                                        language: result.language.clone(),
+                                        gpu_used: result.gpu_used,
+                                    };
+                                    if let Err(e) = db.insert_history(&entry).await {
+                                        tracing::error!("Failed to save transcription to history: {}", e);
+                                    } else {
+                                        tracing::debug!("Saved transcription to history");
+                                    }
+                                }
 
                                 // Copy to clipboard directly in Rust
                                 if !result.text.is_empty() {
