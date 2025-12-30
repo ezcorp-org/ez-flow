@@ -89,6 +89,11 @@
 		return downloadedModelIds.includes(modelId);
 	}
 
+	async function selectActiveModel(modelId: string) {
+		if (!isModelDownloaded(modelId)) return;
+		await settings.updateField('model_id', modelId);
+	}
+
 	// Handle hotkey change
 	async function handleHotkeyChange(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -345,10 +350,16 @@
 								<span class="progress-text">{Math.round(downloadProgress)}%</span>
 							</div>
 						{:else if isModelDownloaded(model.id)}
-							<span class="downloaded-badge">Downloaded</span>
 							{#if $settings.model_id === model.id}
 								<span class="active-badge">Active</span>
 							{:else}
+								<button
+									class="use-model-button"
+									onclick={() => selectActiveModel(model.id)}
+									data-testid="use-model-{model.id}"
+								>
+									Use
+								</button>
 								<button
 									class="delete-model-button"
 									onclick={() => deleteModel(model.id)}
@@ -856,6 +867,22 @@
 	.download-model-button:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+
+	.use-model-button {
+		padding: 0.375rem 0.75rem;
+		background: #22c55e;
+		border: none;
+		border-radius: 4px;
+		color: #000;
+		font-size: 0.8125rem;
+		font-weight: 500;
+		cursor: pointer;
+		transition: background-color 0.2s ease;
+	}
+
+	.use-model-button:hover {
+		background: #16a34a;
 	}
 
 	.delete-model-button {
