@@ -121,15 +121,21 @@
 	<div class="setup-container">
 		<div class="header">
 			<div class="logo">
-				<svg width="48" height="48" viewBox="0 0 64 64" fill="none">
-					<rect width="64" height="64" rx="16" fill="#f4c430" />
-					<path
-						d="M20 32 C20 20 32 16 32 16 C32 16 44 20 44 32 C44 44 32 48 32 48 C32 48 20 44 20 32"
-						stroke="black"
-						stroke-width="3"
-						fill="none"
-					/>
-					<circle cx="32" cy="32" r="8" fill="black" />
+				<svg width="48" height="48" viewBox="0 0 200 200" fill="none">
+					<circle cx="100" cy="100" r="96" fill="none" stroke="#1e3a5f" stroke-width="8"/>
+					<circle cx="100" cy="100" r="88" fill="#fef9f3"/>
+					<path d="M 20 130 A 85 85 0 0 0 180 130" fill="none" stroke="#e85d04" stroke-width="8" stroke-linecap="round" transform="rotate(180 100 100)"/>
+					<rect x="70" y="45" width="36" height="55" rx="18" fill="#1e3a5f"/>
+					<line x1="76" y1="58" x2="100" y2="58" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
+					<line x1="76" y1="68" x2="100" y2="68" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
+					<line x1="76" y1="78" x2="100" y2="78" stroke="#fef9f3" stroke-width="3" stroke-linecap="round"/>
+					<rect x="82" y="100" width="12" height="20" fill="#1e3a5f"/>
+					<rect x="70" y="118" width="36" height="8" rx="2" fill="#1e3a5f"/>
+					<path d="M115 55 Q125 50 135 55 Q145 60 155 55" stroke="#e85d04" stroke-width="6" stroke-linecap="round" fill="none"/>
+					<path d="M115 75 Q125 72 140 75 L160 75" stroke="#e85d04" stroke-width="6" stroke-linecap="round" fill="none"/>
+					<line x1="115" y1="95" x2="170" y2="95" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
+					<line x1="115" y1="115" x2="160" y2="115" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
+					<line x1="115" y1="135" x2="145" y2="135" stroke="#1e3a5f" stroke-width="6" stroke-linecap="round"/>
 				</svg>
 			</div>
 			<h1>EZ Flow</h1>
