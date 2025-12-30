@@ -6,6 +6,7 @@
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import NavBar from '$lib/components/NavBar.svelte';
+	import KeybindCapture from '$lib/components/KeybindCapture.svelte';
 
 	interface ModelInfo {
 		id: string;
@@ -25,6 +26,9 @@
 	let downloadProgress = $state(0);
 	let modelError = $state<string | null>(null);
 	let unlisteners: UnlistenFn[] = [];
+
+	// Hotkey state
+	let hotkeyError = $state<string | null>(null);
 
 	// Load settings and model info on mount
 	onMount(async () => {
@@ -94,10 +98,16 @@
 		await settings.updateField('model_id', modelId);
 	}
 
-	// Handle hotkey change
-	async function handleHotkeyChange(e: Event) {
-		const target = e.target as HTMLInputElement;
-		await settings.updateField('hotkey', target.value);
+	// Handle hotkey change from KeybindCapture component
+	async function handleHotkeyChange(newHotkey: string) {
+		hotkeyError = null;
+		try {
+			// Update the setting - this will also register the new hotkey on the backend
+			await settings.updateField('hotkey', newHotkey);
+		} catch (e) {
+			hotkeyError = `Failed to set hotkey: ${e}`;
+			setTimeout(() => (hotkeyError = null), 5000);
+		}
 	}
 
 	// Handle recording mode change
@@ -242,17 +252,16 @@
 		<h2 class="section-title">Recording</h2>
 
 		<div class="setting-item">
-			<label class="setting-label" for="hotkey">Hotkey</label>
-			<input
-				type="text"
-				id="hotkey"
-				data-testid="hotkey-input"
-				class="setting-input"
+			<span class="setting-label">Hotkey</span>
+			<KeybindCapture
 				value={$settings.hotkey}
 				onchange={handleHotkeyChange}
-				placeholder="Ctrl+Shift+Space"
 			/>
-			<p class="setting-description">Press the keys you want to use as your recording hotkey</p>
+			{#if hotkeyError}
+				<p class="setting-description error-text">{hotkeyError}</p>
+			{:else}
+				<p class="setting-description">Click to capture a new keyboard shortcut for recording</p>
+			{/if}
 		</div>
 
 		<div class="setting-item">
@@ -765,6 +774,10 @@
 
 	.setting-description.warning {
 		color: #f59e0b;
+	}
+
+	.setting-description.error-text {
+		color: #ef4444;
 	}
 
 	.model-error {

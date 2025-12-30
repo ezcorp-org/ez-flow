@@ -81,26 +81,24 @@ pub fn register_hotkey<R: Runtime>(
     let is_recording = state.is_hotkey_recording.clone();
 
     // Register with the global shortcut manager
-    let result =
-        app.global_shortcut()
-            .on_shortcut(shortcut, move |app, _shortcut, event| {
-                match event.state {
-                    ShortcutState::Pressed => {
-                        if !is_recording.load(Ordering::SeqCst) {
-                            tracing::info!("Hotkey pressed - starting recording");
-                            is_recording.store(true, Ordering::SeqCst);
-                            let _ = app.emit("hotkey://recording-started", ());
-                        }
-                    }
-                    ShortcutState::Released => {
-                        if is_recording.load(Ordering::SeqCst) {
-                            tracing::info!("Hotkey released - stopping recording");
-                            is_recording.store(false, Ordering::SeqCst);
-                            let _ = app.emit("hotkey://recording-stopped", ());
-                        }
-                    }
+    let result = app
+        .global_shortcut()
+        .on_shortcut(shortcut, move |app, _shortcut, event| match event.state {
+            ShortcutState::Pressed => {
+                if !is_recording.load(Ordering::SeqCst) {
+                    tracing::info!("Hotkey pressed - starting recording");
+                    is_recording.store(true, Ordering::SeqCst);
+                    let _ = app.emit("hotkey://recording-started", ());
                 }
-            });
+            }
+            ShortcutState::Released => {
+                if is_recording.load(Ordering::SeqCst) {
+                    tracing::info!("Hotkey released - stopping recording");
+                    is_recording.store(false, Ordering::SeqCst);
+                    let _ = app.emit("hotkey://recording-stopped", ());
+                }
+            }
+        });
 
     match result {
         Ok(_) => {
@@ -177,10 +175,14 @@ pub fn test_hotkey<R: Runtime>(app: &AppHandle<R>, hotkey: &str) -> Result<bool,
     Ok(!is_registered)
 }
 
-/// Setup hotkey on app startup with graceful degradation
+/// Setup hotkey on app startup with graceful degradation (uses platform default)
 pub fn setup_hotkey<R: Runtime>(app: &AppHandle<R>, state: &HotkeyState) {
     let hotkey = get_default_hotkey();
+    setup_hotkey_with_key(app, state, hotkey);
+}
 
+/// Setup hotkey on app startup with a specific hotkey string
+pub fn setup_hotkey_with_key<R: Runtime>(app: &AppHandle<R>, state: &HotkeyState, hotkey: &str) {
     match register_hotkey(app, hotkey, state) {
         Ok(_) => {
             tracing::info!("Push-to-talk hotkey enabled: {}", hotkey);

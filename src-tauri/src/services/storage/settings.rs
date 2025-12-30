@@ -24,8 +24,7 @@ pub enum SettingsError {
 
 /// Get the settings file path
 pub fn get_settings_path() -> Result<PathBuf, SettingsError> {
-    let proj_dirs =
-        ProjectDirs::from("com", "ezflow", "EZFlow").ok_or(SettingsError::NoAppDirs)?;
+    let proj_dirs = ProjectDirs::from("com", "ezflow", "EZFlow").ok_or(SettingsError::NoAppDirs)?;
     Ok(proj_dirs.config_dir().join("settings.json"))
 }
 
@@ -97,6 +96,18 @@ impl SettingsState {
             Err(_) => {
                 tracing::warn!("Could not acquire settings lock, using default model_id");
                 "base".to_string()
+            }
+        }
+    }
+
+    /// Get hotkey synchronously (non-blocking)
+    /// Returns the current hotkey or platform default as fallback if lock unavailable
+    pub fn get_hotkey_sync(&self) -> String {
+        match self.settings.try_read() {
+            Ok(guard) => guard.hotkey.clone(),
+            Err(_) => {
+                tracing::warn!("Could not acquire settings lock, using default hotkey");
+                Settings::default().hotkey
             }
         }
     }

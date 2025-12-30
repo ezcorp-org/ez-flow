@@ -3,11 +3,12 @@
 //! Commands for managing user preferences.
 
 use crate::models::Settings;
+use crate::services::hotkey::{register_hotkey, unregister_hotkey, HotkeyState};
 use crate::services::storage::SettingsState;
 use crate::services::transcription::{
     detect_gpu_backend, get_languages, is_gpu_available, GpuBackend, GpuInfo, Language,
 };
-use tauri::State;
+use tauri::{AppHandle, State};
 
 /// Get current settings
 #[tauri::command]
@@ -27,11 +28,20 @@ pub async fn update_settings(
 /// Update a single setting field
 #[tauri::command]
 pub async fn update_setting(
+    app: AppHandle,
     key: String,
     value: serde_json::Value,
     state: State<'_, SettingsState>,
+    hotkey_state: State<'_, HotkeyState>,
 ) -> Result<Settings, String> {
-    state
+    // Check if this is a hotkey update - we'll need to re-register
+    let new_hotkey = if key == "hotkey" {
+        value.as_str().map(|s| s.to_string())
+    } else {
+        None
+    };
+
+    let result = state
         .update_field(|settings| {
             match key.as_str() {
                 "hotkey" => {
@@ -114,26 +124,48 @@ pub async fn update_setting(
             }
         })
         .await
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // If hotkey was changed, re-register the global shortcut
+    if let Some(hotkey) = new_hotkey {
+        tracing::info!("Hotkey setting changed to '{}', re-registering", hotkey);
+        // Unregister old hotkey first (ignore errors - it might not be registered)
+        let _ = unregister_hotkey(&app, &hotkey_state);
+        // Register new hotkey
+        if let Err(e) = register_hotkey(&app, &hotkey, &hotkey_state) {
+            tracing::error!("Failed to register new hotkey '{}': {}", hotkey, e);
+            return Err(format!("Failed to register hotkey: {}", e));
+        }
+    }
+
+    Ok(result)
 }
 
 /// Reset settings to defaults
 #[tauri::command]
-pub async fn reset_settings(state: State<'_, SettingsState>) -> Result<Settings, String> {
+pub async fn reset_settings(
+    app: AppHandle,
+    state: State<'_, SettingsState>,
+    hotkey_state: State<'_, HotkeyState>,
+) -> Result<Settings, String> {
     let defaults = Settings::default();
     state
         .update(defaults.clone())
         .await
         .map_err(|e| e.to_string())?;
+
+    // Re-register the default hotkey
+    let _ = unregister_hotkey(&app, &hotkey_state);
+    if let Err(e) = register_hotkey(&app, &defaults.hotkey, &hotkey_state) {
+        tracing::warn!("Failed to register default hotkey: {}", e);
+    }
+
     Ok(defaults)
 }
 
 /// Export settings to a JSON file
 #[tauri::command]
-pub async fn export_settings(
-    path: String,
-    state: State<'_, SettingsState>,
-) -> Result<(), String> {
+pub async fn export_settings(path: String, state: State<'_, SettingsState>) -> Result<(), String> {
     let settings = state.get().await;
     let content = serde_json::to_string_pretty(&settings).map_err(|e| e.to_string())?;
     std::fs::write(&path, content).map_err(|e| e.to_string())?;

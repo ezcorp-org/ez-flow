@@ -44,13 +44,18 @@ export const testIds = {
   // Settings
   settingsButton: 'settings-button',
   hotkeyInput: 'hotkey-input',
+  keybindCapture: 'keybind-capture',
+  keybindButton: 'keybind-button',
+  keybindError: 'keybind-error',
   languageSelect: 'language-select',
   autoStartToggle: 'auto-start-toggle',
   gpuToggle: 'gpu-toggle',
   themeSelect: 'theme-select',
   advancedSection: 'advanced-section',
+  advancedToggle: 'advanced-toggle',
   saveSettingsButton: 'save-settings',
   resetDefaultsButton: 'reset-defaults',
+  resetButton: 'reset-button',
 
   // History
   historyButton: 'history-button',
