@@ -9,10 +9,10 @@ use crate::commands::TranscriptionState;
 use crate::models::HistoryEntry;
 use crate::services::audio::{
     capture::save_to_temp_wav,
-    processing::{calculate_audio_level, resample_for_whisper},
+    processing::resample_for_whisper,
     AudioCaptureService, AudioDevice, AudioError, PermissionStatus, RecordingResult,
 };
-use crate::services::audio::processing::AudioBuffer;
+use crate::services::audio::processing::{calculate_audio_level, AudioBuffer};
 use crate::services::storage::{DatabaseState, SettingsState};
 use crate::services::transcription::TranscriptionResult;
 use crate::services::ui::indicator::emit_audio_level;
@@ -20,7 +20,7 @@ use chrono::Utc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Manager, Runtime, State};
+use tauri::{AppHandle, Runtime, State};
 
 /// Commands for the audio thread
 pub enum AudioCommand {

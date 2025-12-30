@@ -4,7 +4,7 @@
 
 use crate::commands::{AudioState, TranscriptionState};
 use crate::services::platform::TextInjectorState;
-use crate::services::storage::SettingsState;
+use crate::services::storage::{DatabaseState, SettingsState};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
@@ -78,6 +78,7 @@ pub async fn push_to_talk_complete(
     transcription_state: State<'_, TranscriptionState>,
     text_injector_state: State<'_, TextInjectorState>,
     settings_state: State<'_, SettingsState>,
+    database_state: State<'_, DatabaseState>,
 ) -> Result<PushToTalkResult, String> {
     let start = Instant::now();
 
@@ -96,6 +97,7 @@ pub async fn push_to_talk_complete(
         audio_state.clone(),
         transcription_state.clone(),
         settings_state.clone(),
+        database_state.clone(),
     )
     .await
     {
