@@ -4,7 +4,6 @@
 	import { invoke } from '@tauri-apps/api/core';
 	import { save, open } from '@tauri-apps/plugin-dialog';
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-	import BackButton from '$lib/components/BackButton.svelte';
 	import NavBar from '$lib/components/NavBar.svelte';
 
 	let advancedExpanded = $state(false);
@@ -156,10 +155,6 @@
 
 <div class="settings-page" data-testid="settings-panel">
 	<div class="sticky-header">
-		<div class="top-bar">
-			<BackButton />
-		</div>
-
 		<h1 class="settings-title">Settings</h1>
 	</div>
 
@@ -409,10 +404,6 @@
 		margin: -1.5rem -1.5rem 0 -1.5rem;
 		padding: 1.5rem 1.5rem 0.5rem 1.5rem;
 		z-index: 40;
-	}
-
-	.top-bar {
-		margin-bottom: 1rem;
 	}
 
 	.settings-title {
