@@ -65,7 +65,7 @@ pub fn get_model_manifest() -> Vec<WhisperModel> {
             name: "Tiny (Fast)".into(),
             size_mb: 75,
             url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin".into(),
-            sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b4acca1c9f42c9b4690".into(),
+            sha256: "be07e048e1e599ad46341c8d2a135645097a538221678b7acdd1b1919c6e1b21".into(),
             downloaded: false,
         },
         WhisperModel {
