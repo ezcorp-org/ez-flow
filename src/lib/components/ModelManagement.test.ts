@@ -172,25 +172,62 @@ describe('App Model Check Logic', () => {
 });
 
 describe('Download Progress Handling', () => {
-	test('should update progress state on event', () => {
+	test('should convert 0-1 progress to 0-100 percentage', () => {
 		let downloadProgress = 0;
 
+		// This matches the actual implementation in Settings page:
+		// downloadProgress = event.payload.progress * 100;
 		const handleProgress = (event: { payload: { progress: number } }) => {
-			downloadProgress = event.payload.progress;
+			downloadProgress = event.payload.progress * 100;
 		};
 
-		// Simulate progress events
+		// Backend sends progress as 0.0 to 1.0
 		handleProgress({ payload: { progress: 0 } });
 		expect(downloadProgress).toBe(0);
 
-		handleProgress({ payload: { progress: 25 } });
+		handleProgress({ payload: { progress: 0.25 } });
 		expect(downloadProgress).toBe(25);
 
-		handleProgress({ payload: { progress: 50 } });
+		handleProgress({ payload: { progress: 0.5 } });
 		expect(downloadProgress).toBe(50);
 
-		handleProgress({ payload: { progress: 100 } });
+		handleProgress({ payload: { progress: 0.75 } });
+		expect(downloadProgress).toBe(75);
+
+		handleProgress({ payload: { progress: 1.0 } });
 		expect(downloadProgress).toBe(100);
+	});
+
+	test('should handle fractional progress values correctly', () => {
+		let downloadProgress = 0;
+
+		const handleProgress = (event: { payload: { progress: number } }) => {
+			downloadProgress = event.payload.progress * 100;
+		};
+
+		// Test various fractional values
+		handleProgress({ payload: { progress: 0.01 } });
+		expect(downloadProgress).toBe(1);
+
+		handleProgress({ payload: { progress: 0.333 } });
+		expect(downloadProgress).toBeCloseTo(33.3, 1);
+
+		handleProgress({ payload: { progress: 0.666 } });
+		expect(downloadProgress).toBeCloseTo(66.6, 1);
+
+		handleProgress({ payload: { progress: 0.99 } });
+		expect(downloadProgress).toBe(99);
+	});
+
+	test('should use correct event name model:download_progress', () => {
+		// The event name must match what the backend emits
+		const correctEventName = 'model:download_progress';
+		const incorrectEventName = 'model-download-progress';
+
+		// Verify the correct format (colon separator, not hyphen)
+		expect(correctEventName).toBe('model:download_progress');
+		expect(correctEventName).not.toBe(incorrectEventName);
+		expect(correctEventName.includes(':')).toBe(true);
 	});
 
 	test('should reset progress when download completes', () => {

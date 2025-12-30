@@ -270,6 +270,45 @@ test.describe('Settings - Model Management Section', () => {
 			}
 		});
 
+		test('should show progress percentage text during download', async ({ page }) => {
+			await page.waitForTimeout(500);
+
+			const downloadButtons = page.locator('.download-model-button');
+			const count = await downloadButtons.count();
+
+			if (count > 0) {
+				// Click download on first available model
+				await downloadButtons.first().click();
+
+				// Should show progress text with percentage
+				const progressText = page.locator('.progress-text');
+				await expect(progressText).toBeVisible({ timeout: 5000 });
+
+				// Progress text should contain a number followed by %
+				await expect(progressText).toContainText('%');
+			}
+		});
+
+		test('should update progress bar fill width during download', async ({ page }) => {
+			await page.waitForTimeout(500);
+
+			const downloadButtons = page.locator('.download-model-button');
+			const count = await downloadButtons.count();
+
+			if (count > 0) {
+				// Click download on first available model
+				await downloadButtons.first().click();
+
+				// Should show progress fill element
+				const progressFill = page.locator('.progress-fill');
+				await expect(progressFill).toBeVisible({ timeout: 5000 });
+
+				// The progress fill should have a width style
+				const style = await progressFill.getAttribute('style');
+				expect(style).toContain('width:');
+			}
+		});
+
 		test('should disable other download buttons during download', async ({ page }) => {
 			await page.waitForTimeout(500);
 
