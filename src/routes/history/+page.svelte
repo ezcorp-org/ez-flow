@@ -113,17 +113,18 @@
 </script>
 
 <div class="history-page" data-testid="history-panel">
-	<div class="top-bar">
-		<BackButton />
-	</div>
+	<div class="sticky-header">
+		<div class="top-bar">
+			<BackButton />
+		</div>
 
-	<div class="header">
-		<h1 class="title">History</h1>
-		<span class="count">{entries.length} entries</span>
-	</div>
+		<div class="header">
+			<h1 class="title">History</h1>
+			<span class="count">{entries.length} entries</span>
+		</div>
 
-	<!-- Search and Clear -->
-	<div class="controls">
+		<!-- Search and Clear -->
+		<div class="controls">
 		<input
 			type="text"
 			class="search-input"
@@ -141,6 +142,7 @@
 				Clear All
 			</button>
 		{/if}
+		</div>
 	</div>
 
 	{#if showClearConfirm}
@@ -233,6 +235,15 @@
 		background: #0a0a0a;
 		min-height: 100vh;
 		color: #e5e5e5;
+	}
+
+	.sticky-header {
+		position: sticky;
+		top: 0;
+		background: #0a0a0a;
+		margin: -1.5rem -1.5rem 0 -1.5rem;
+		padding: 1.5rem 1.5rem 1rem 1.5rem;
+		z-index: 40;
 	}
 
 	.top-bar {

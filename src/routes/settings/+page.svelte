@@ -155,11 +155,13 @@
 </script>
 
 <div class="settings-page" data-testid="settings-panel">
-	<div class="top-bar">
-		<BackButton />
-	</div>
+	<div class="sticky-header">
+		<div class="top-bar">
+			<BackButton />
+		</div>
 
-	<h1 class="settings-title">Settings</h1>
+		<h1 class="settings-title">Settings</h1>
+	</div>
 
 	<!-- Recording Section -->
 	<section class="settings-section">
@@ -400,6 +402,15 @@
 		color: #e5e5e5;
 	}
 
+	.sticky-header {
+		position: sticky;
+		top: 0;
+		background: #0a0a0a;
+		margin: -1.5rem -1.5rem 0 -1.5rem;
+		padding: 1.5rem 1.5rem 0.5rem 1.5rem;
+		z-index: 40;
+	}
+
 	.top-bar {
 		margin-bottom: 1rem;
 	}
@@ -407,7 +418,7 @@
 	.settings-title {
 		font-size: 1.5rem;
 		font-weight: 600;
-		margin-bottom: 1.5rem;
+		margin-bottom: 1rem;
 		color: #f4c430;
 	}
 
