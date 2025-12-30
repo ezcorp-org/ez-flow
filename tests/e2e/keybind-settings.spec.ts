@@ -146,6 +146,33 @@ test.describe('Keybind Settings', () => {
 	});
 
 	test.describe('Hotkey Persistence', () => {
+		test('should allow re-selecting the same hotkey', async ({ page }) => {
+			const keybindButton = page.locator('[data-testid="keybind-button"]');
+			const keybindValue = keybindButton.locator('.keybind-value');
+
+			// Get the current hotkey value
+			const originalHotkey = await keybindValue.textContent();
+
+			// Click to enter capture mode
+			await keybindButton.click();
+			await expect(keybindButton).toHaveClass(/capturing/);
+
+			// Capture the same hotkey (default is Ctrl+Shift+Space)
+			await page.keyboard.down('Control');
+			await page.keyboard.down('Shift');
+			await page.keyboard.press('Space');
+
+			// Should NOT show error - re-selecting same hotkey is valid
+			const errorElement = page.locator('[data-testid="keybind-error"]');
+			await expect(errorElement).not.toBeVisible();
+
+			// Should exit capture mode
+			await expect(keybindButton).not.toHaveClass(/capturing/);
+
+			// Should still show the same hotkey
+			await expect(keybindValue).toHaveText(originalHotkey!);
+		});
+
 		test('should save new hotkey to settings', async ({ page }) => {
 			const keybindButton = page.locator('[data-testid="keybind-button"]');
 
@@ -168,6 +195,34 @@ test.describe('Keybind Settings', () => {
 			await expect(keybindValue).toContainText(/Ctrl|⌃/);
 			await expect(keybindValue).toContainText(/Alt|⌥/);
 			await expect(keybindValue).toContainText('R');
+		});
+
+		test('should persist hotkey change across navigation', async ({ page }) => {
+			const keybindButton = page.locator('[data-testid="keybind-button"]');
+
+			// Capture a new hotkey
+			await keybindButton.click();
+			await page.keyboard.down('Control');
+			await page.keyboard.down('Alt');
+			await page.keyboard.press('KeyP');
+
+			// Should show the new hotkey
+			const keybindValue = keybindButton.locator('.keybind-value');
+			await expect(keybindValue).toContainText(/Ctrl|⌃/);
+			await expect(keybindValue).toContainText(/Alt|⌥/);
+			await expect(keybindValue).toContainText('P');
+
+			// Wait for save
+			await page.waitForTimeout(500);
+
+			// Navigate to Home and back
+			await page.click('[data-testid="nav-main"]');
+			await page.waitForTimeout(300);
+			await openSettings(page);
+
+			// Should still show the new hotkey
+			const keybindValueAfter = page.locator('[data-testid="keybind-button"] .keybind-value');
+			await expect(keybindValueAfter).toContainText('P');
 		});
 
 		test('should reset hotkey when resetting settings', async ({ page }) => {

@@ -165,10 +165,7 @@ pub async fn push_to_talk_complete(
     );
 
     if total_latency_ms > 3000 {
-        tracing::warn!(
-            "Latency exceeded 3 second target: {}ms",
-            total_latency_ms
-        );
+        tracing::warn!("Latency exceeded 3 second target: {}ms", total_latency_ms);
     }
 
     // Emit metrics event
@@ -204,9 +201,7 @@ pub fn is_push_to_talk_cooldown_active() -> bool {
 
 /// Get the current workflow state
 #[tauri::command]
-pub async fn get_workflow_state(
-    audio_state: State<'_, AudioState>,
-) -> Result<String, String> {
+pub async fn get_workflow_state(audio_state: State<'_, AudioState>) -> Result<String, String> {
     let is_recording = crate::commands::audio::is_recording(audio_state).await?;
 
     if is_recording {

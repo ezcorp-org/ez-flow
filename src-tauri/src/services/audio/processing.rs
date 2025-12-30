@@ -104,8 +104,7 @@ pub fn resample_for_whisper(audio: AudioBuffer) -> Result<Vec<f32>, AudioError> 
     }
 
     // Trim output to expected length
-    let expected_len =
-        ((audio.samples.len() as f64) * resample_ratio).ceil() as usize;
+    let expected_len = ((audio.samples.len() as f64) * resample_ratio).ceil() as usize;
     output.truncate(expected_len);
 
     tracing::debug!(
@@ -255,9 +254,7 @@ mod tests {
     #[test]
     fn test_calculate_audio_level_speech() {
         // Typical speech level (RMS around 0.1)
-        let samples: Vec<f32> = (0..100)
-            .map(|i| 0.1 * (i as f32 * 0.1).sin())
-            .collect();
+        let samples: Vec<f32> = (0..100).map(|i| 0.1 * (i as f32 * 0.1).sin()).collect();
         let level = calculate_audio_level(&samples);
         // Should be in the 0.1-0.5 range for typical speech-level signal
         assert!(
@@ -271,6 +268,9 @@ mod tests {
     fn test_calculate_audio_level_empty() {
         let samples: Vec<f32> = vec![];
         let level = calculate_audio_level(&samples);
-        assert!((level - 0.0).abs() < 0.001, "Empty buffer should return 0.0");
+        assert!(
+            (level - 0.0).abs() < 0.001,
+            "Empty buffer should return 0.0"
+        );
     }
 }

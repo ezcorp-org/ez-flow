@@ -69,7 +69,9 @@ pub async fn is_model_loaded(state: State<'_, TranscriptionState>) -> Result<boo
 
 /// Get the currently loaded model ID
 #[tauri::command]
-pub async fn get_loaded_model_id(state: State<'_, TranscriptionState>) -> Result<Option<String>, String> {
+pub async fn get_loaded_model_id(
+    state: State<'_, TranscriptionState>,
+) -> Result<Option<String>, String> {
     let model_id = state.engine.model_id().await;
     if model_id.is_empty() {
         Ok(None)
@@ -182,15 +184,19 @@ pub async fn transcribe_dropped_file(
     tracing::info!("Transcribing dropped file: {}", file_name);
 
     // Emit progress: starting
-    let _ = app.emit("file-transcription://progress", FileTranscriptionProgress {
-        progress: 0.0,
-        stage: "starting".to_string(),
-    });
+    let _ = app.emit(
+        "file-transcription://progress",
+        FileTranscriptionProgress {
+            progress: 0.0,
+            stage: "starting".to_string(),
+        },
+    );
 
     // Create a temporary directory for the file
     let temp_dir = std::env::temp_dir().join("ez-flow-transcribe");
     if !temp_dir.exists() {
-        std::fs::create_dir_all(&temp_dir).map_err(|e| format!("Failed to create temp dir: {}", e))?;
+        std::fs::create_dir_all(&temp_dir)
+            .map_err(|e| format!("Failed to create temp dir: {}", e))?;
     }
 
     // Generate a unique filename to avoid conflicts
@@ -198,19 +204,27 @@ pub async fn transcribe_dropped_file(
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_millis();
-    let safe_filename = format!("{}_{}", timestamp, file_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_"));
+    let safe_filename = format!(
+        "{}_{}",
+        timestamp,
+        file_name.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_")
+    );
     let temp_path = temp_dir.join(&safe_filename);
 
     // Write the file data to the temporary file
-    std::fs::write(&temp_path, &file_data).map_err(|e| format!("Failed to write temp file: {}", e))?;
+    std::fs::write(&temp_path, &file_data)
+        .map_err(|e| format!("Failed to write temp file: {}", e))?;
 
     tracing::debug!("Saved dropped file to: {:?}", temp_path);
 
     // Emit progress: decoding
-    let _ = app.emit("file-transcription://progress", FileTranscriptionProgress {
-        progress: 10.0,
-        stage: "decoding".to_string(),
-    });
+    let _ = app.emit(
+        "file-transcription://progress",
+        FileTranscriptionProgress {
+            progress: 10.0,
+            stage: "decoding".to_string(),
+        },
+    );
 
     // Decode audio file to samples
     let samples = decode_audio_file(&temp_path).map_err(|e| {
@@ -220,21 +234,20 @@ pub async fn transcribe_dropped_file(
     })?;
 
     // Emit progress: transcribing
-    let _ = app.emit("file-transcription://progress", FileTranscriptionProgress {
-        progress: 30.0,
-        stage: "transcribing".to_string(),
-    });
+    let _ = app.emit(
+        "file-transcription://progress",
+        FileTranscriptionProgress {
+            progress: 30.0,
+            stage: "transcribing".to_string(),
+        },
+    );
 
     // Run transcription
-    let result = state
-        .engine
-        .transcribe(samples)
-        .await
-        .map_err(|e| {
-            // Clean up temp file on error
-            let _ = std::fs::remove_file(&temp_path);
-            e.to_string()
-        })?;
+    let result = state.engine.transcribe(samples).await.map_err(|e| {
+        // Clean up temp file on error
+        let _ = std::fs::remove_file(&temp_path);
+        e.to_string()
+    })?;
 
     // Clean up the temporary file
     if let Err(e) = std::fs::remove_file(&temp_path) {
@@ -242,10 +255,13 @@ pub async fn transcribe_dropped_file(
     }
 
     // Emit progress: complete
-    let _ = app.emit("file-transcription://progress", FileTranscriptionProgress {
-        progress: 100.0,
-        stage: "complete".to_string(),
-    });
+    let _ = app.emit(
+        "file-transcription://progress",
+        FileTranscriptionProgress {
+            progress: 100.0,
+            stage: "complete".to_string(),
+        },
+    );
 
     tracing::info!(
         "Dropped file transcription complete: {} chars in {}ms",

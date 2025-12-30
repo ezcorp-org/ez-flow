@@ -60,21 +60,9 @@ pub fn setup_tray(app: &AppHandle<tauri::Wry>) -> Result<(), Box<dyn std::error:
         None::<&str>,
     )?;
 
-    let history = MenuItem::with_id(
-        app,
-        menu_ids::HISTORY,
-        "History...",
-        true,
-        None::<&str>,
-    )?;
+    let history = MenuItem::with_id(app, menu_ids::HISTORY, "History...", true, None::<&str>)?;
 
-    let settings = MenuItem::with_id(
-        app,
-        menu_ids::SETTINGS,
-        "Settings...",
-        true,
-        None::<&str>,
-    )?;
+    let settings = MenuItem::with_id(app, menu_ids::SETTINGS, "Settings...", true, None::<&str>)?;
 
     // Create other menu items
     let about = MenuItem::with_id(app, menu_ids::ABOUT, "About EZ Flow", true, None::<&str>)?;
@@ -349,13 +337,18 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
                 tracing::info!("Loading audio file: {}", path_str);
 
                 // Read and decode the audio file
-                match crate::services::transcription::decoder::decode_audio_file(std::path::Path::new(&path_str)) {
+                match crate::services::transcription::decoder::decode_audio_file(
+                    std::path::Path::new(&path_str),
+                ) {
                     Ok(samples) => {
                         tracing::info!("Audio file decoded, {} samples", samples.len());
 
                         match engine.transcribe_with_auto_load(samples, &model_id).await {
                             Ok(result) => {
-                                tracing::info!("File transcription complete: {} chars", result.text.len());
+                                tracing::info!(
+                                    "File transcription complete: {} chars",
+                                    result.text.len()
+                                );
 
                                 // Save to history
                                 let database_state = app_for_emit.state::<DatabaseState>();
@@ -370,7 +363,10 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
                                         gpu_used: result.gpu_used,
                                     };
                                     if let Err(e) = db.insert_history(&entry).await {
-                                        tracing::error!("Failed to save transcription to history: {}", e);
+                                        tracing::error!(
+                                            "Failed to save transcription to history: {}",
+                                            e
+                                        );
                                     } else {
                                         tracing::debug!("Saved transcription to history");
                                     }
@@ -378,18 +374,22 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
 
                                 // Copy to clipboard directly in Rust
                                 if !result.text.is_empty() {
-                                    if let Err(e) = app_for_emit.clipboard().write_text(&result.text) {
+                                    if let Err(e) =
+                                        app_for_emit.clipboard().write_text(&result.text)
+                                    {
                                         tracing::error!("Failed to copy to clipboard: {}", e);
                                     } else {
                                         tracing::info!("Transcription copied to clipboard");
                                     }
                                 }
 
-                                let _ = app_for_emit.emit("tray://transcription-complete", &result.text);
+                                let _ = app_for_emit
+                                    .emit("tray://transcription-complete", &result.text);
                             }
                             Err(e) => {
                                 tracing::error!("File transcription failed: {}", e);
-                                let _ = app_for_emit.emit("tray://transcription-error", e.to_string());
+                                let _ =
+                                    app_for_emit.emit("tray://transcription-error", e.to_string());
                             }
                         }
                     }

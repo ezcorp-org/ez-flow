@@ -96,7 +96,8 @@ pub fn get_model_manifest() -> Vec<WhisperModel> {
             id: "large-v3".into(),
             name: "Large v3 (Best)".into(),
             size_mb: 3100,
-            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin".into(),
+            url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3.bin"
+                .into(),
             sha256: "64d182b440b98d5203c4f9bd541544d84c605196c4f7b845dfa11fb23594d1e2".into(),
             downloaded: false,
         },
@@ -196,7 +197,11 @@ where
     // Move to final location
     std::fs::rename(&temp_path, &dest_path)?;
 
-    tracing::info!("Model {} downloaded successfully to {:?}", model.id, dest_path);
+    tracing::info!(
+        "Model {} downloaded successfully to {:?}",
+        model.id,
+        dest_path
+    );
     Ok(())
 }
 

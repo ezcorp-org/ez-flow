@@ -7,16 +7,10 @@ use tauri::State;
 
 /// Inject text at the current cursor position
 #[tauri::command]
-pub async fn inject_text(
-    text: String,
-    state: State<'_, TextInjectorState>,
-) -> Result<(), String> {
+pub async fn inject_text(text: String, state: State<'_, TextInjectorState>) -> Result<(), String> {
     tracing::info!("inject_text command called with {} chars", text.len());
 
-    state
-        .inject_text(&text)
-        .await
-        .map_err(|e| e.to_string())
+    state.inject_text(&text).await.map_err(|e| e.to_string())
 }
 
 /// Set the keystroke delay for text injection

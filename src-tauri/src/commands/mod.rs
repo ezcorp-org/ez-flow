@@ -47,26 +47,20 @@ pub fn greet(name: &str) -> String {
 #[tauri::command]
 pub fn enable_autostart(app: AppHandle) -> Result<(), String> {
     tracing::info!("Enabling autostart");
-    app.autolaunch()
-        .enable()
-        .map_err(|e| e.to_string())
+    app.autolaunch().enable().map_err(|e| e.to_string())
 }
 
 /// Disable auto-start at system login
 #[tauri::command]
 pub fn disable_autostart(app: AppHandle) -> Result<(), String> {
     tracing::info!("Disabling autostart");
-    app.autolaunch()
-        .disable()
-        .map_err(|e| e.to_string())
+    app.autolaunch().disable().map_err(|e| e.to_string())
 }
 
 /// Check if auto-start is enabled
 #[tauri::command]
 pub fn is_autostart_enabled(app: AppHandle) -> Result<bool, String> {
-    app.autolaunch()
-        .is_enabled()
-        .map_err(|e| e.to_string())
+    app.autolaunch().is_enabled().map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

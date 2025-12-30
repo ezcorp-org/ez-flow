@@ -137,7 +137,7 @@
 		try {
 			const available = await checkHotkeyAvailable(hotkeyString);
 			if (!available) {
-				error = 'This hotkey is already in use by another application';
+				error = 'This hotkey is not available';
 				setTimeout(() => {
 					cancelCapture();
 				}, 2000);

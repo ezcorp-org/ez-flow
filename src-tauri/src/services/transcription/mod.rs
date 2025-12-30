@@ -17,8 +17,8 @@ pub use models::{
     get_model_manifest, DownloadError, DownloadProgress, WhisperModel,
 };
 
-use thiserror::Error;
 use std::path::PathBuf;
+use thiserror::Error;
 
 /// Transcription result
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

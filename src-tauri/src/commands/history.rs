@@ -28,9 +28,7 @@ pub async fn save_history(
         gpu_used: result.gpu_used,
     };
 
-    db.insert_history(&entry)
-        .await
-        .map_err(|e| e.to_string())
+    db.insert_history(&entry).await.map_err(|e| e.to_string())
 }
 
 /// Get paginated history entries
@@ -68,10 +66,7 @@ pub async fn search_history(
 
 /// Delete a single history entry
 #[tauri::command]
-pub async fn delete_history_entry(
-    id: i64,
-    state: State<'_, DatabaseState>,
-) -> Result<(), String> {
+pub async fn delete_history_entry(id: i64, state: State<'_, DatabaseState>) -> Result<(), String> {
     let db = state
         .get()
         .ok_or_else(|| "Database not available".to_string())?;
@@ -268,7 +263,9 @@ mod tests {
 
     #[test]
     fn test_various_model_ids() {
-        let models = vec!["tiny", "tiny.en", "base", "base.en", "small", "medium", "large-v3"];
+        let models = vec![
+            "tiny", "tiny.en", "base", "base.en", "small", "medium", "large-v3",
+        ];
 
         for model_id in models {
             let result = TranscriptionResult {

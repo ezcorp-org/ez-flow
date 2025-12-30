@@ -40,8 +40,23 @@ pub fn get_platform_default_hotkey() -> String {
 }
 
 /// Check if a hotkey is available (not conflicting with other apps)
+/// Returns true if:
+/// - The hotkey is the same as the currently registered one (we own it)
+/// - The hotkey is not registered by our app (new hotkey to try)
 #[tauri::command]
-pub async fn check_hotkey_available(app: AppHandle, hotkey: String) -> Result<bool, String> {
+pub async fn check_hotkey_available(
+    app: AppHandle,
+    state: State<'_, HotkeyState>,
+    hotkey: String,
+) -> Result<bool, String> {
+    // If this is the same as the current hotkey, it's available (we own it)
+    let current = state.current_hotkey.read().await.clone();
+    if let Some(current_hotkey) = current {
+        if current_hotkey == hotkey {
+            return Ok(true);
+        }
+    }
+
     test_hotkey(&app, &hotkey).map_err(|e| e.to_string())
 }
 

@@ -115,7 +115,10 @@ impl WhisperEngine {
 
     /// Transcribe audio samples (must be 16kHz mono f32)
     pub fn transcribe(&self, audio: &[f32]) -> Result<TranscriptionResult, TranscriptionError> {
-        let ctx = self.ctx.as_ref().ok_or(TranscriptionError::ModelNotLoaded)?;
+        let ctx = self
+            .ctx
+            .as_ref()
+            .ok_or(TranscriptionError::ModelNotLoaded)?;
 
         if audio.is_empty() {
             return Err(TranscriptionError::InvalidAudioFile(
@@ -165,9 +168,10 @@ impl WhisperEngine {
         }
 
         // Get detected language if available
-        let language = state.full_lang_id_from_state().ok().and_then(|id| {
-            whisper_rs::get_lang_str(id).map(|s| s.to_string())
-        });
+        let language = state
+            .full_lang_id_from_state()
+            .ok()
+            .and_then(|id| whisper_rs::get_lang_str(id).map(|s| s.to_string()));
 
         let duration_ms = (audio.len() as f32 / 16.0) as u64;
 
@@ -233,7 +237,10 @@ impl SharedWhisperEngine {
         engine.model_id().to_string()
     }
 
-    pub async fn transcribe(&self, audio: Vec<f32>) -> Result<TranscriptionResult, TranscriptionError> {
+    pub async fn transcribe(
+        &self,
+        audio: Vec<f32>,
+    ) -> Result<TranscriptionResult, TranscriptionError> {
         let engine = self.inner.lock().await;
         engine.transcribe(&audio)
     }
@@ -252,7 +259,10 @@ impl SharedWhisperEngine {
 
         // If model is not loaded, attempt lazy loading
         if !engine.is_loaded() {
-            tracing::info!("No model loaded, attempting lazy load of model: {}", model_id);
+            tracing::info!(
+                "No model loaded, attempting lazy load of model: {}",
+                model_id
+            );
 
             let model_path = super::get_model_path(model_id);
 

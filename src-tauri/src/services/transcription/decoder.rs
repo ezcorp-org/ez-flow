@@ -21,9 +21,8 @@ pub fn decode_audio_file(path: &Path) -> Result<Vec<f32>, TranscriptionError> {
         )));
     }
 
-    let file = std::fs::File::open(path).map_err(|e| {
-        TranscriptionError::InvalidAudioFile(format!("Failed to open file: {}", e))
-    })?;
+    let file = std::fs::File::open(path)
+        .map_err(|e| TranscriptionError::InvalidAudioFile(format!("Failed to open file: {}", e)))?;
 
     let mss = MediaSourceStream::new(Box::new(file), Default::default());
 
@@ -41,7 +40,9 @@ pub fn decode_audio_file(path: &Path) -> Result<Vec<f32>, TranscriptionError> {
             &FormatOptions::default(),
             &MetadataOptions::default(),
         )
-        .map_err(|e| TranscriptionError::InvalidAudioFile(format!("Failed to probe format: {}", e)))?;
+        .map_err(|e| {
+            TranscriptionError::InvalidAudioFile(format!("Failed to probe format: {}", e))
+        })?;
 
     let mut format = probed.format;
 
@@ -59,21 +60,16 @@ pub fn decode_audio_file(path: &Path) -> Result<Vec<f32>, TranscriptionError> {
         .sample_rate
         .ok_or_else(|| TranscriptionError::InvalidAudioFile("Unknown sample rate".to_string()))?;
 
-    let channels = codec_params
-        .channels
-        .map(|c| c.count())
-        .unwrap_or(1);
+    let channels = codec_params.channels.map(|c| c.count()).unwrap_or(1);
 
-    tracing::debug!(
-        "Decoding audio: {} Hz, {} channels",
-        sample_rate,
-        channels
-    );
+    tracing::debug!("Decoding audio: {} Hz, {} channels", sample_rate, channels);
 
     // Create decoder
     let mut decoder = symphonia::default::get_codecs()
         .make(&codec_params, &DecoderOptions::default())
-        .map_err(|e| TranscriptionError::InvalidAudioFile(format!("Failed to create decoder: {}", e)))?;
+        .map_err(|e| {
+            TranscriptionError::InvalidAudioFile(format!("Failed to create decoder: {}", e))
+        })?;
 
     // Decode all packets
     let mut samples: Vec<f32> = Vec::new();
@@ -155,9 +151,8 @@ pub fn decode_audio_file(path: &Path) -> Result<Vec<f32>, TranscriptionError> {
 
     // Resample to 16kHz if needed
     let buffer = AudioBuffer::new(mono_samples, sample_rate);
-    let resampled = resample_for_whisper(buffer).map_err(|e| {
-        TranscriptionError::AudioError(format!("Resampling failed: {}", e))
-    })?;
+    let resampled = resample_for_whisper(buffer)
+        .map_err(|e| TranscriptionError::AudioError(format!("Resampling failed: {}", e)))?;
 
     tracing::info!(
         "Audio decoded: {} samples at 16kHz ({:.2}s)",
@@ -176,7 +171,10 @@ mod tests {
     #[test]
     fn test_decode_nonexistent_file() {
         let result = decode_audio_file(Path::new("/nonexistent/audio.wav"));
-        assert!(matches!(result, Err(TranscriptionError::InvalidAudioFile(_))));
+        assert!(matches!(
+            result,
+            Err(TranscriptionError::InvalidAudioFile(_))
+        ));
     }
 
     #[test]

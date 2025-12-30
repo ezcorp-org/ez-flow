@@ -7,12 +7,11 @@
 
 use crate::commands::TranscriptionState;
 use crate::models::HistoryEntry;
-use crate::services::audio::{
-    capture::save_to_temp_wav,
-    processing::resample_for_whisper,
-    AudioCaptureService, AudioDevice, AudioError, PermissionStatus, RecordingResult,
-};
 use crate::services::audio::processing::{calculate_audio_level, AudioBuffer};
+use crate::services::audio::{
+    capture::save_to_temp_wav, processing::resample_for_whisper, AudioCaptureService, AudioDevice,
+    AudioError, PermissionStatus, RecordingResult,
+};
 use crate::services::storage::{DatabaseState, SettingsState};
 use crate::services::transcription::TranscriptionResult;
 use crate::services::ui::indicator::emit_audio_level;
@@ -103,7 +102,8 @@ impl AudioState {
                     Ok(AudioCommand::Start) => {
                         let result = (|| -> Result<(), String> {
                             if service.is_none() {
-                                service = Some(AudioCaptureService::new().map_err(|e| e.to_string())?);
+                                service =
+                                    Some(AudioCaptureService::new().map_err(|e| e.to_string())?);
                             }
                             if let Some(ref mut svc) = service {
                                 svc.start().map_err(|e| e.to_string())?;
@@ -191,7 +191,10 @@ impl AudioState {
     }
 
     /// Start the level emitter thread that periodically emits audio levels
-    pub fn start_level_emitter<R: Runtime + 'static>(&self, app: AppHandle<R>) -> Result<(), String> {
+    pub fn start_level_emitter<R: Runtime + 'static>(
+        &self,
+        app: AppHandle<R>,
+    ) -> Result<(), String> {
         // Stop any existing emitter
         self.stop_level_emitter();
 
@@ -220,7 +223,10 @@ impl AudioState {
             }
         });
 
-        *self.level_emitter_handle.lock().map_err(|e| e.to_string())? = Some(handle);
+        *self
+            .level_emitter_handle
+            .lock()
+            .map_err(|e| e.to_string())? = Some(handle);
         Ok(())
     }
 
@@ -300,10 +306,7 @@ pub async fn check_microphone_permission() -> PermissionStatus {
 
 /// Start recording audio
 #[tauri::command]
-pub async fn start_recording(
-    app: AppHandle,
-    state: State<'_, AudioState>,
-) -> Result<(), String> {
+pub async fn start_recording(app: AppHandle, state: State<'_, AudioState>) -> Result<(), String> {
     tracing::info!("Starting audio recording");
 
     match state.send_command(AudioCommand::Start)? {
