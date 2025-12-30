@@ -119,6 +119,24 @@ pub fn resample_for_whisper(audio: AudioBuffer) -> Result<Vec<f32>, AudioError> 
     Ok(output)
 }
 
+/// Calculate audio level using RMS (Root Mean Square)
+///
+/// Returns a normalized value between 0.0 and 1.0 suitable for visualization.
+/// Typical speech produces RMS values of 0.01-0.3, which are scaled to 0.0-1.0.
+pub fn calculate_audio_level(samples: &[f32]) -> f32 {
+    if samples.is_empty() {
+        return 0.0;
+    }
+
+    // RMS calculation
+    let sum_squares: f32 = samples.iter().map(|s| s * s).sum();
+    let rms = (sum_squares / samples.len() as f32).sqrt();
+
+    // Normalize to 0-1 range (typical speech is 0.01-0.3 RMS)
+    // Multiply by 5.0 to scale typical speech to ~0.5-1.0 range
+    (rms * 5.0).min(1.0)
+}
+
 /// Normalize audio samples to [-1.0, 1.0] range
 pub fn normalize(samples: &mut [f32]) {
     let max_amplitude = samples
@@ -216,5 +234,43 @@ mod tests {
         assert!((samples[1] - 0.5).abs() < 0.001);
         assert!((samples[2] - (-1.0)).abs() < 0.001);
         assert!((samples[3] - 0.2).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_calculate_audio_level_silence() {
+        let samples = vec![0.0; 100];
+        let level = calculate_audio_level(&samples);
+        assert!((level - 0.0).abs() < 0.001, "Silence should return 0.0");
+    }
+
+    #[test]
+    fn test_calculate_audio_level_loud() {
+        // Full-scale samples (amplitude of 1.0)
+        let samples = vec![1.0, -1.0, 1.0, -1.0];
+        let level = calculate_audio_level(&samples);
+        // RMS of full-scale alternating signal is 1.0, times 5.0 = 5.0, clamped to 1.0
+        assert!((level - 1.0).abs() < 0.001, "Loud signal should return 1.0");
+    }
+
+    #[test]
+    fn test_calculate_audio_level_speech() {
+        // Typical speech level (RMS around 0.1)
+        let samples: Vec<f32> = (0..100)
+            .map(|i| 0.1 * (i as f32 * 0.1).sin())
+            .collect();
+        let level = calculate_audio_level(&samples);
+        // Should be in the 0.1-0.5 range for typical speech-level signal
+        assert!(
+            level > 0.0 && level < 1.0,
+            "Speech-level signal should return value between 0 and 1, got {}",
+            level
+        );
+    }
+
+    #[test]
+    fn test_calculate_audio_level_empty() {
+        let samples: Vec<f32> = vec![];
+        let level = calculate_audio_level(&samples);
+        assert!((level - 0.0).abs() < 0.001, "Empty buffer should return 0.0");
     }
 }

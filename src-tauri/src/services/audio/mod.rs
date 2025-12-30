@@ -19,7 +19,7 @@ pub fn is_supported_format(path: &Path) -> bool {
 }
 
 pub use capture::AudioCaptureService;
-pub use processing::{resample_for_whisper, stereo_to_mono, AudioBuffer};
+pub use processing::{calculate_audio_level, resample_for_whisper, stereo_to_mono, AudioBuffer};
 
 use thiserror::Error;
 

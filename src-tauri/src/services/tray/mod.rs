@@ -193,6 +193,12 @@ fn start_recording_from_tray(app: &AppHandle<tauri::Wry>) {
             tracing::info!("Recording started successfully from tray");
             // Update menu items
             update_menu_for_recording(app, true);
+
+            // Start emitting audio levels
+            if let Err(e) = audio_state.start_level_emitter(app.clone()) {
+                tracing::warn!("Failed to start level emitter: {}", e);
+            }
+
             // Emit event so UI can update (e.g., show indicator)
             let _ = app.emit("tray://recording-started", ());
         }
@@ -216,6 +222,9 @@ fn stop_recording_from_tray(app: &AppHandle<tauri::Wry>) {
     let transcription_state = app.state::<TranscriptionState>();
     let settings_state = app.state::<SettingsState>();
     let app_handle = app.clone();
+
+    // Stop level emitter
+    audio_state.stop_level_emitter();
 
     // Reset menu state immediately
     update_menu_for_recording(app, false);

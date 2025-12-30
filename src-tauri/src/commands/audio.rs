@@ -7,14 +7,18 @@
 
 use crate::commands::TranscriptionState;
 use crate::services::audio::{
-    capture::save_to_temp_wav, processing::resample_for_whisper, AudioCaptureService, AudioDevice,
-    AudioError, PermissionStatus, RecordingResult,
+    capture::save_to_temp_wav,
+    processing::{calculate_audio_level, resample_for_whisper},
+    AudioCaptureService, AudioDevice, AudioError, PermissionStatus, RecordingResult,
 };
 use crate::services::audio::processing::AudioBuffer;
 use crate::services::storage::SettingsState;
 use crate::services::transcription::TranscriptionResult;
+use crate::services::ui::indicator::emit_audio_level;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::State;
+use tauri::{AppHandle, Manager, Runtime, State};
 
 /// Commands for the audio thread
 pub enum AudioCommand {
@@ -22,6 +26,7 @@ pub enum AudioCommand {
     Stop,
     IsRecording,
     GetDuration,
+    GetLevel,
     Shutdown,
 }
 
@@ -31,6 +36,7 @@ pub enum AudioResponse {
     Buffer(Result<AudioBuffer, String>),
     Bool(bool),
     Duration(f32),
+    Level(f32),
     Error(String),
 }
 
@@ -40,6 +46,12 @@ pub struct AudioState {
     resp_rx: std::sync::Mutex<Option<std::sync::mpsc::Receiver<AudioResponse>>>,
     thread_handle: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
     initialized: std::sync::atomic::AtomicBool,
+    /// Shared audio level for periodic emission
+    current_level: Arc<std::sync::Mutex<f32>>,
+    /// Flag to control level emitter thread
+    level_emitter_running: Arc<AtomicBool>,
+    /// Handle to level emitter thread
+    level_emitter_handle: std::sync::Mutex<Option<std::thread::JoinHandle<()>>>,
 }
 
 impl Default for AudioState {
@@ -49,6 +61,9 @@ impl Default for AudioState {
             resp_rx: std::sync::Mutex::new(None),
             thread_handle: std::sync::Mutex::new(None),
             initialized: std::sync::atomic::AtomicBool::new(false),
+            current_level: Arc::new(std::sync::Mutex::new(0.0)),
+            level_emitter_running: Arc::new(AtomicBool::new(false)),
+            level_emitter_handle: std::sync::Mutex::new(None),
         }
     }
 }
@@ -74,11 +89,15 @@ impl AudioState {
         let (cmd_tx, cmd_rx) = std::sync::mpsc::channel::<AudioCommand>();
         let (resp_tx, resp_rx) = std::sync::mpsc::channel::<AudioResponse>();
 
+        // Share the level with the audio thread
+        let shared_level = self.current_level.clone();
+
         let handle = std::thread::spawn(move || {
             let mut service: Option<AudioCaptureService> = None;
 
             loop {
-                match cmd_rx.recv() {
+                // Use recv_timeout to periodically update the shared level
+                match cmd_rx.recv_timeout(Duration::from_millis(50)) {
                     Ok(AudioCommand::Start) => {
                         let result = (|| -> Result<(), String> {
                             if service.is_none() {
@@ -113,7 +132,28 @@ impl AudioState {
                             .unwrap_or(0.0);
                         let _ = resp_tx.send(AudioResponse::Duration(dur));
                     }
-                    Ok(AudioCommand::Shutdown) | Err(_) => {
+                    Ok(AudioCommand::GetLevel) => {
+                        let level = service
+                            .as_ref()
+                            .map(|s| s.get_current_level())
+                            .unwrap_or(0.0);
+                        let _ = resp_tx.send(AudioResponse::Level(level));
+                    }
+                    Ok(AudioCommand::Shutdown) => {
+                        break;
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                        // Update shared level during recording
+                        if let Some(ref svc) = service {
+                            if svc.is_recording() {
+                                let level = svc.get_current_level();
+                                if let Ok(mut lvl) = shared_level.lock() {
+                                    *lvl = level;
+                                }
+                            }
+                        }
+                    }
+                    Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
                         break;
                     }
                 }
@@ -146,6 +186,65 @@ impl AudioState {
             .ok_or_else(|| "Audio thread not initialized".to_string())?
             .recv_timeout(Duration::from_secs(5))
             .map_err(|e| e.to_string())
+    }
+
+    /// Start the level emitter thread that periodically emits audio levels
+    pub fn start_level_emitter<R: Runtime + 'static>(&self, app: AppHandle<R>) -> Result<(), String> {
+        // Stop any existing emitter
+        self.stop_level_emitter();
+
+        self.ensure_initialized()?;
+        self.level_emitter_running.store(true, Ordering::SeqCst);
+
+        let running = self.level_emitter_running.clone();
+        let current_level = self.current_level.clone();
+
+        let handle = std::thread::spawn(move || {
+            while running.load(Ordering::SeqCst) {
+                // Sleep for ~100ms between level updates
+                std::thread::sleep(Duration::from_millis(100));
+
+                if !running.load(Ordering::SeqCst) {
+                    break;
+                }
+
+                // Get current level from shared state
+                let level = *current_level.lock().unwrap_or_else(|e| e.into_inner());
+
+                // Emit the level event
+                if let Err(e) = emit_audio_level(&app, level) {
+                    tracing::trace!("Failed to emit audio level: {}", e);
+                }
+            }
+        });
+
+        *self.level_emitter_handle.lock().map_err(|e| e.to_string())? = Some(handle);
+        Ok(())
+    }
+
+    /// Update the current level from the audio thread
+    pub fn update_level(&self, level: f32) {
+        if let Ok(mut lvl) = self.current_level.lock() {
+            *lvl = level;
+        }
+    }
+
+    /// Stop the level emitter thread
+    pub fn stop_level_emitter(&self) {
+        self.level_emitter_running.store(false, Ordering::SeqCst);
+        if let Ok(mut handle) = self.level_emitter_handle.lock() {
+            if let Some(h) = handle.take() {
+                let _ = h.join();
+            }
+        }
+    }
+
+    /// Get the current audio level (for polling)
+    pub fn get_level(&self) -> f32 {
+        match self.send_command(AudioCommand::GetLevel) {
+            Ok(AudioResponse::Level(l)) => l,
+            _ => 0.0,
+        }
     }
 }
 
@@ -199,12 +298,21 @@ pub async fn check_microphone_permission() -> PermissionStatus {
 
 /// Start recording audio
 #[tauri::command]
-pub async fn start_recording(state: State<'_, AudioState>) -> Result<(), String> {
+pub async fn start_recording(
+    app: AppHandle,
+    state: State<'_, AudioState>,
+) -> Result<(), String> {
     tracing::info!("Starting audio recording");
 
     match state.send_command(AudioCommand::Start)? {
         AudioResponse::Ok => {
             tracing::info!("Recording started successfully");
+
+            // Start emitting audio levels
+            if let Err(e) = state.start_level_emitter(app) {
+                tracing::warn!("Failed to start level emitter: {}", e);
+            }
+
             Ok(())
         }
         AudioResponse::Error(e) => Err(e),
@@ -216,6 +324,9 @@ pub async fn start_recording(state: State<'_, AudioState>) -> Result<(), String>
 #[tauri::command]
 pub async fn stop_recording(state: State<'_, AudioState>) -> Result<RecordingResult, String> {
     tracing::info!("Stopping audio recording");
+
+    // Stop level emitter
+    state.stop_level_emitter();
 
     match state.send_command(AudioCommand::Stop)? {
         AudioResponse::Buffer(Ok(buffer)) => {
@@ -266,6 +377,9 @@ pub async fn stop_recording_and_transcribe(
     let start = Instant::now();
 
     tracing::info!("Stopping recording and transcribing");
+
+    // Stop level emitter
+    audio_state.stop_level_emitter();
 
     // Stop recording
     let buffer = match audio_state.send_command(AudioCommand::Stop)? {

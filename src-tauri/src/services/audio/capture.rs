@@ -2,7 +2,10 @@
 //!
 //! Handles microphone input and buffering for transcription.
 
-use super::{processing::AudioBuffer, AudioDevice, AudioError, RecordingResult};
+use super::{
+    processing::{calculate_audio_level, AudioBuffer},
+    AudioDevice, AudioError, RecordingResult,
+};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -10,6 +13,9 @@ use std::time::{Duration, Instant};
 
 /// Maximum recording duration in seconds (5 minutes)
 const MAX_RECORDING_DURATION_SECS: u64 = 300;
+
+/// Number of samples to use for level calculation (~100ms at 16kHz)
+const LEVEL_CALCULATION_SAMPLES: usize = 1600;
 
 /// Audio capture service for recording from microphone
 pub struct AudioCaptureService {
@@ -20,6 +26,10 @@ pub struct AudioCaptureService {
     is_recording: Arc<AtomicBool>,
     recording_start: Option<Instant>,
     channels: u16,
+    /// Current audio level (0.0-1.0), updated during recording
+    current_level: Arc<Mutex<f32>>,
+    /// Buffer for level calculation to avoid allocation in callback
+    level_buffer: Arc<Mutex<Vec<f32>>>,
 }
 
 impl AudioCaptureService {
@@ -48,6 +58,8 @@ impl AudioCaptureService {
             buffer: Arc::new(Mutex::new(Vec::new())),
             is_recording: Arc::new(AtomicBool::new(false)),
             recording_start: None,
+            current_level: Arc::new(Mutex::new(0.0)),
+            level_buffer: Arc::new(Mutex::new(Vec::with_capacity(LEVEL_CALCULATION_SAMPLES))),
         })
     }
 
@@ -71,6 +83,8 @@ impl AudioCaptureService {
             buffer: Arc::new(Mutex::new(Vec::new())),
             is_recording: Arc::new(AtomicBool::new(false)),
             recording_start: None,
+            current_level: Arc::new(Mutex::new(0.0)),
+            level_buffer: Arc::new(Mutex::new(Vec::with_capacity(LEVEL_CALCULATION_SAMPLES))),
         })
     }
 
@@ -103,10 +117,14 @@ impl AudioCaptureService {
             return Ok(());
         }
 
-        // Clear any previous buffer
+        // Clear any previous buffer and reset level
         self.buffer.lock().unwrap().clear();
+        self.level_buffer.lock().unwrap().clear();
+        *self.current_level.lock().unwrap() = 0.0;
 
         let buffer = self.buffer.clone();
+        let level_buffer = self.level_buffer.clone();
+        let current_level = self.current_level.clone();
         let is_recording = self.is_recording.clone();
         let channels = self.channels;
 
@@ -120,15 +138,29 @@ impl AudioCaptureService {
                 move |data: &[f32], _: &cpal::InputCallbackInfo| {
                     if is_recording.load(Ordering::SeqCst) {
                         let mut buf = buffer.lock().unwrap();
+                        let mut lvl_buf = level_buffer.lock().unwrap();
+
                         // Convert stereo to mono if needed
                         if channels == 2 {
                             for chunk in data.chunks(2) {
                                 if chunk.len() == 2 {
-                                    buf.push((chunk[0] + chunk[1]) / 2.0);
+                                    let sample = (chunk[0] + chunk[1]) / 2.0;
+                                    buf.push(sample);
+                                    lvl_buf.push(sample);
                                 }
                             }
                         } else {
                             buf.extend_from_slice(data);
+                            lvl_buf.extend_from_slice(data);
+                        }
+
+                        // Calculate level when we have enough samples
+                        if lvl_buf.len() >= LEVEL_CALCULATION_SAMPLES {
+                            let level = calculate_audio_level(&lvl_buf);
+                            if let Ok(mut lvl) = current_level.lock() {
+                                *lvl = level;
+                            }
+                            lvl_buf.clear();
                         }
                     }
                 },
@@ -137,25 +169,42 @@ impl AudioCaptureService {
             ),
             cpal::SampleFormat::I16 => {
                 let buffer = buffer.clone();
+                let level_buffer = level_buffer.clone();
+                let current_level = current_level.clone();
                 let is_recording = is_recording.clone();
                 self.device.build_input_stream(
                     &self.config.clone().into(),
                     move |data: &[i16], _: &cpal::InputCallbackInfo| {
                         if is_recording.load(Ordering::SeqCst) {
                             let mut buf = buffer.lock().unwrap();
+                            let mut lvl_buf = level_buffer.lock().unwrap();
+
                             // Convert i16 to f32 and stereo to mono if needed
                             if channels == 2 {
                                 for chunk in data.chunks(2) {
                                     if chunk.len() == 2 {
                                         let left = chunk[0] as f32 / i16::MAX as f32;
                                         let right = chunk[1] as f32 / i16::MAX as f32;
-                                        buf.push((left + right) / 2.0);
+                                        let sample = (left + right) / 2.0;
+                                        buf.push(sample);
+                                        lvl_buf.push(sample);
                                     }
                                 }
                             } else {
-                                for sample in data {
-                                    buf.push(*sample as f32 / i16::MAX as f32);
+                                for s in data {
+                                    let sample = *s as f32 / i16::MAX as f32;
+                                    buf.push(sample);
+                                    lvl_buf.push(sample);
                                 }
+                            }
+
+                            // Calculate level when we have enough samples
+                            if lvl_buf.len() >= LEVEL_CALCULATION_SAMPLES {
+                                let level = calculate_audio_level(&lvl_buf);
+                                if let Ok(mut lvl) = current_level.lock() {
+                                    *lvl = level;
+                                }
+                                lvl_buf.clear();
                             }
                         }
                     },
@@ -227,6 +276,11 @@ impl AudioCaptureService {
     /// Get the device sample rate
     pub fn sample_rate(&self) -> u32 {
         self.config.sample_rate().0
+    }
+
+    /// Get the current audio level (0.0-1.0)
+    pub fn get_current_level(&self) -> f32 {
+        *self.current_level.lock().unwrap()
     }
 }
 
