@@ -258,11 +258,7 @@ fn stop_recording_from_tray(app: &AppHandle<tauri::Wry>) {
     // Clone the engine for the async task
     let engine = transcription_state.engine.clone();
     // Get model_id synchronously before spawning
-    let model_id = {
-        let settings = settings_state.inner();
-        let rt = tokio::runtime::Handle::current();
-        rt.block_on(async { settings.get().await.model_id.clone() })
-    };
+    let model_id = settings_state.get_model_id_sync();
 
     // Spawn async task for transcription with auto-load
     tauri::async_runtime::spawn(async move {
@@ -316,11 +312,7 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
             let app_for_emit = app_handle.clone();
 
             // Get model_id synchronously before spawning
-            let model_id = {
-                let settings = settings_state.inner();
-                let rt = tokio::runtime::Handle::current();
-                rt.block_on(async { settings.get().await.model_id.clone() })
-            };
+            let model_id = settings_state.get_model_id_sync();
 
             // Spawn async task for transcription with auto-load
             tauri::async_runtime::spawn(async move {

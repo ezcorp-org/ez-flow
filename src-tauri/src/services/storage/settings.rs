@@ -89,6 +89,18 @@ impl SettingsState {
         self.settings.read().await.clone()
     }
 
+    /// Get model_id synchronously (non-blocking)
+    /// Returns the current model_id or "base" as fallback if lock unavailable
+    pub fn get_model_id_sync(&self) -> String {
+        match self.settings.try_read() {
+            Ok(guard) => guard.model_id.clone(),
+            Err(_) => {
+                tracing::warn!("Could not acquire settings lock, using default model_id");
+                "base".to_string()
+            }
+        }
+    }
+
     /// Update settings and save to disk
     pub async fn update(&self, settings: Settings) -> Result<(), SettingsError> {
         save_settings(&settings)?;
@@ -138,5 +150,24 @@ mod tests {
         let state = SettingsState::new();
         let settings = state.get().await;
         assert_eq!(settings.model_id, "base");
+    }
+
+    #[test]
+    fn test_get_model_id_sync() {
+        let state = SettingsState::new();
+        let model_id = state.get_model_id_sync();
+        // Should return default model_id
+        assert_eq!(model_id, "base");
+    }
+
+    #[test]
+    fn test_get_model_id_sync_returns_string() {
+        let state = SettingsState::new();
+        let model_id = state.get_model_id_sync();
+        // Model ID should be a non-empty string
+        assert!(!model_id.is_empty());
+        // Should be one of the valid model IDs
+        let valid_models = ["tiny", "base", "small", "medium", "large-v3"];
+        assert!(valid_models.contains(&model_id.as_str()));
     }
 }

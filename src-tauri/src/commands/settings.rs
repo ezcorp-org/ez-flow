@@ -46,7 +46,13 @@ pub async fn update_setting(
                 }
                 "model_id" => {
                     if let Some(v) = value.as_str() {
-                        settings.model_id = v.to_string();
+                        // Validate against known model IDs
+                        let valid_models = ["tiny", "base", "small", "medium", "large-v3"];
+                        if valid_models.contains(&v) {
+                            settings.model_id = v.to_string();
+                        } else {
+                            tracing::warn!("Invalid model_id '{}', keeping current value", v);
+                        }
                     }
                 }
                 "language" => {
