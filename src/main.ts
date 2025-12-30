@@ -1,58 +1,28 @@
 import './app.css';
 import { mount, unmount } from 'svelte';
-import { invoke } from '@tauri-apps/api/core';
 import { initTrayEventListeners } from './lib/services/trayEvents';
 
 // Simple path-based routing for Tauri windows
 const path = window.location.pathname;
 
-interface ModelValidationResult {
-  loaded: boolean;
-  model_id: string;
-  needs_download: boolean;
-  error: string | null;
-}
-
-
 /**
- * Check if model validation is needed and show modal if necessary
- * Returns true if the app should continue loading, false if waiting for modal
+ * Show the model setup screen on startup
+ * This ensures the user always sees the current model status and can change/download if needed
  */
-async function validateModelOnStartup(target: HTMLElement): Promise<boolean> {
-  try {
-    // Validate and attempt to load the configured model
-    const result = await invoke<ModelValidationResult>('validate_and_load_model');
+async function showModelSetupScreen(target: HTMLElement): Promise<void> {
+  const { default: ModelSetupScreen } = await import('./lib/components/ModelSetupScreen.svelte');
 
-    if (result.loaded) {
-      console.log(`Model ${result.model_id} loaded successfully`);
-      return true;
-    }
-
-    if (result.needs_download) {
-      console.log('Model needs download, showing modal');
-
-      // Dynamically import and mount the modal
-      const { default: ModelValidationModal } = await import('./lib/components/ModelValidationModal.svelte');
-
-      return new Promise((resolve) => {
-        const modalInstance = mount(ModelValidationModal, {
-          target,
-          props: {
-            onComplete: () => {
-              unmount(modalInstance);
-              resolve(true);
-            }
-          }
-        });
-      });
-    }
-
-    return true;
-  } catch (e) {
-    console.error('Model validation failed:', e);
-    // Continue anyway - let the app handle the error when transcription is attempted
-    return true;
-  }
+  return new Promise((resolve) => {
+    const setupInstance = mount(ModelSetupScreen, {
+      target,
+      props: {
+        onComplete: () => {
+          unmount(setupInstance);
+          resolve();
+        }
+      }
+    });
+  });
 }
 
 async function init() {
@@ -67,8 +37,9 @@ async function init() {
       console.error('Failed to init tray listeners:', e);
     }
 
-    // Validate model on main window startup (non-blocking for other routes)
-    await validateModelOnStartup(target);
+    // Always show model setup screen on main window startup
+    // This ensures the user can see model status and download if needed
+    await showModelSetupScreen(target);
   }
 
   if (path === '/settings' || path === '/settings/') {
