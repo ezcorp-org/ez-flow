@@ -33,8 +33,8 @@
 
 		// Listen for download progress events
 		unlisteners.push(
-			await listen<{ progress: number }>('model-download-progress', (event) => {
-				downloadProgress = event.payload.progress;
+			await listen<{ progress: number }>('model:download_progress', (event) => {
+				downloadProgress = event.payload.progress * 100;
 			})
 		);
 	});
