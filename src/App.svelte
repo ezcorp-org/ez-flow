@@ -106,10 +106,15 @@
 		<div class="logo">
 			<svg width="32" height="32" viewBox="0 0 200 200" fill="none">
 				<circle cx="100" cy="100" r="95" fill="#0A0A0A"/>
-				<circle cx="100" cy="100" r="95" fill="none" stroke="#F4C430" stroke-width="6"/>
-				<rect x="80" y="50" width="40" height="60" rx="20" fill="#F4C430"/>
-				<line x1="100" y1="110" x2="100" y2="140" stroke="#F4C430" stroke-width="8" stroke-linecap="round"/>
-				<line x1="75" y1="140" x2="125" y2="140" stroke="#F4C430" stroke-width="8" stroke-linecap="round"/>
+				<circle cx="100" cy="100" r="95" fill="none" stroke="#F4C430" stroke-width="4"/>
+				<rect x="82" y="40" width="36" height="80" rx="18" fill="#F4C430"/>
+				<line x1="88" y1="55" x2="112" y2="55" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+				<line x1="88" y1="67" x2="112" y2="67" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+				<line x1="88" y1="79" x2="112" y2="79" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+				<line x1="88" y1="91" x2="112" y2="91" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+				<line x1="88" y1="103" x2="112" y2="103" stroke="#0A0A0A" stroke-width="2.5" stroke-linecap="round"/>
+				<path d="M65 95 Q65 140 100 140 Q135 140 135 95" fill="none" stroke="#F4C430" stroke-width="6" stroke-linecap="round"/>
+				<line x1="100" y1="140" x2="100" y2="165" stroke="#F4C430" stroke-width="6" stroke-linecap="round"/>
 			</svg>
 		</div>
 		<h1>EZ Flow</h1>
