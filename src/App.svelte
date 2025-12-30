@@ -6,9 +6,11 @@
 	import HistoryList from '$lib/components/HistoryList.svelte';
 	import NavBar from '$lib/components/NavBar.svelte';
 	import ModelSetupScreen from '$lib/components/ModelSetupScreen.svelte';
+	import FileDropZone from '$lib/components/FileDropZone.svelte';
 
 	let historyList: HistoryList;
 	let lastTranscription = $state<string | null>(null);
+	let lastTranscriptionFilename = $state<string | null>(null);
 	let error = $state<string | null>(null);
 	let checkingModel = $state(true);
 	let needsModelSetup = $state(false);
@@ -44,12 +46,26 @@
 
 	async function handleTranscriptionComplete(text: string) {
 		lastTranscription = text;
+		lastTranscriptionFilename = null;
 		error = null;
 		// Refresh history to show new entry
 		await historyList?.refresh();
 		// Clear the notification after a few seconds
 		setTimeout(() => {
 			lastTranscription = null;
+		}, 5000);
+	}
+
+	async function handleFileTranscriptionComplete(text: string, filename: string) {
+		lastTranscription = text;
+		lastTranscriptionFilename = filename;
+		error = null;
+		// Refresh history to show new entry
+		await historyList?.refresh();
+		// Clear the notification after a few seconds
+		setTimeout(() => {
+			lastTranscription = null;
+			lastTranscriptionFilename = null;
 		}, 5000);
 	}
 
@@ -64,6 +80,7 @@
 
 	function dismissNotification() {
 		lastTranscription = null;
+		lastTranscriptionFilename = null;
 		error = null;
 	}
 </script>
@@ -105,7 +122,13 @@
 							<polyline points="20 6 9 17 4 12"></polyline>
 						</svg>
 					</span>
-					<span class="notification-text">Transcription copied to clipboard!</span>
+					<span class="notification-text">
+						{#if lastTranscriptionFilename}
+							Transcribed "{lastTranscriptionFilename}"!
+						{:else}
+							Transcription copied to clipboard!
+						{/if}
+					</span>
 				</div>
 				<button class="dismiss-btn" onclick={dismissNotification} aria-label="Dismiss">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -136,6 +159,13 @@
 				</button>
 			</div>
 		{/if}
+	</section>
+
+	<section class="file-drop-section">
+		<FileDropZone
+			onTranscriptionComplete={handleFileTranscriptionComplete}
+			onError={handleError}
+		/>
 	</section>
 
 	<section class="history-section">
@@ -287,6 +317,13 @@
 
 	.dismiss-btn:hover {
 		opacity: 1;
+	}
+
+	.file-drop-section {
+		max-width: 480px;
+		width: 100%;
+		margin: 0 auto;
+		padding: 0 0 1rem 0;
 	}
 
 	.history-section {

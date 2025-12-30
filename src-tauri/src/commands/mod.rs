@@ -23,7 +23,7 @@ pub use audio::{
 pub use transcription::{
     check_model_exists, get_loaded_model_id, get_models_directory, is_model_loaded,
     list_available_models, load_whisper_model, load_whisper_model_from_path, transcribe_audio,
-    transcribe_samples, unload_whisper_model, TranscriptionState,
+    transcribe_dropped_file, transcribe_samples, unload_whisper_model, TranscriptionState,
 };
 
 pub use models::{

@@ -47,9 +47,11 @@ pub fn run() {
             // Set up system tray
             services::tray::setup_tray(app.handle())?;
 
-            // Set up global hotkey with graceful degradation
+            // Set up global hotkey with saved hotkey from settings
             let hotkey_state = app.state::<commands::HotkeyState>();
-            services::hotkey::setup_hotkey(app.handle(), &hotkey_state);
+            let settings_state = app.state::<services::storage::SettingsState>();
+            let saved_hotkey = settings_state.get_hotkey_sync();
+            services::hotkey::setup_hotkey_with_key(app.handle(), &hotkey_state, &saved_hotkey);
 
             // Show main window on startup for model setup screen
             // The frontend will show the ModelSetupScreen and then the app
@@ -90,6 +92,7 @@ pub fn run() {
             commands::transcription::get_models_directory,
             commands::transcription::check_model_exists,
             commands::transcription::list_available_models,
+            commands::transcription::transcribe_dropped_file,
             // Model management commands
             commands::models::get_available_models,
             commands::models::get_downloaded_model_ids,
