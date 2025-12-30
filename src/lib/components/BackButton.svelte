@@ -1,26 +1,44 @@
 <script lang="ts">
-	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-	import { getCurrentWindow } from '@tauri-apps/api/window';
-
 	interface Props {
 		fallbackWindow?: string;
+		fallbackPath?: string;
 	}
 
-	let { fallbackWindow = 'main' }: Props = $props();
+	let { fallbackWindow = 'main', fallbackPath = '/' }: Props = $props();
 
 	async function goBack() {
-		const currentWindow = getCurrentWindow();
+		// Check if running in Tauri environment
+		const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-		// Show the fallback window (usually main)
-		const targetWindow = await WebviewWindow.getByLabel(fallbackWindow);
-		if (targetWindow) {
-			await targetWindow.show();
-			await targetWindow.setFocus();
-		}
+		if (isTauri) {
+			try {
+				const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+				const { getCurrentWindow } = await import('@tauri-apps/api/window');
 
-		// Hide current window if it's not the main window
-		if (currentWindow.label !== 'main') {
-			await currentWindow.hide();
+				const currentWindow = getCurrentWindow();
+
+				// Show the fallback window (usually main)
+				const targetWindow = await WebviewWindow.getByLabel(fallbackWindow);
+				if (targetWindow) {
+					await targetWindow.show();
+					await targetWindow.setFocus();
+
+					// Hide current window if it's not the main window
+					if (currentWindow.label !== 'main') {
+						await currentWindow.hide();
+					}
+				} else {
+					// Fallback to URL navigation
+					window.location.href = fallbackPath;
+				}
+			} catch (error) {
+				console.error('Back navigation error:', error);
+				// Fallback to URL navigation
+				window.location.href = fallbackPath;
+			}
+		} else {
+			// Browser mode - use URL navigation
+			window.location.href = fallbackPath;
 		}
 	}
 </script>

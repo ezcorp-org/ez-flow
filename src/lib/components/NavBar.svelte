@@ -1,39 +1,82 @@
 <script lang="ts">
-	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
-	import { getCurrentWindow } from '@tauri-apps/api/window';
 	import { onMount } from 'svelte';
 
 	interface NavItem {
 		windowLabel: string;
+		path: string;
 		label: string;
 		icon: string;
 	}
 
 	const navItems: NavItem[] = [
-		{ windowLabel: 'main', label: 'Home', icon: 'home' },
-		{ windowLabel: 'history', label: 'History', icon: 'history' },
-		{ windowLabel: 'settings', label: 'Settings', icon: 'settings' }
+		{ windowLabel: 'main', path: '/', label: 'Home', icon: 'home' },
+		{ windowLabel: 'history', path: '/history', label: 'History', icon: 'history' },
+		{ windowLabel: 'settings', path: '/settings', label: 'Settings', icon: 'settings' }
 	];
 
-	let currentWindowLabel = $state('');
+	let currentWindowLabel = $state('main');
+	let isTauri = $state(false);
 
-	onMount(() => {
-		currentWindowLabel = getCurrentWindow().label;
+	onMount(async () => {
+		// Check if running in Tauri environment
+		isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
+
+		if (isTauri) {
+			try {
+				const { getCurrentWindow } = await import('@tauri-apps/api/window');
+				currentWindowLabel = getCurrentWindow().label;
+			} catch {
+				// Fallback to path-based detection
+				detectCurrentPage();
+			}
+		} else {
+			// Browser mode - detect from URL
+			detectCurrentPage();
+		}
 	});
 
-	async function navigateTo(windowLabel: string) {
-		if (windowLabel === currentWindowLabel) return;
-
-		const targetWindow = await WebviewWindow.getByLabel(windowLabel);
-		if (targetWindow) {
-			await targetWindow.show();
-			await targetWindow.setFocus();
+	function detectCurrentPage() {
+		const path = window.location.pathname;
+		if (path === '/' || path === '') {
+			currentWindowLabel = 'main';
+		} else if (path.startsWith('/history')) {
+			currentWindowLabel = 'history';
+		} else if (path.startsWith('/settings')) {
+			currentWindowLabel = 'settings';
 		}
+	}
 
-		// Hide current window (except main)
-		if (currentWindowLabel !== 'main') {
-			const currentWin = getCurrentWindow();
-			await currentWin.hide();
+	async function navigateTo(item: NavItem) {
+		if (item.windowLabel === currentWindowLabel) return;
+
+		if (isTauri) {
+			try {
+				const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow');
+				const { getCurrentWindow } = await import('@tauri-apps/api/window');
+
+				const targetWindow = await WebviewWindow.getByLabel(item.windowLabel);
+				if (targetWindow) {
+					await targetWindow.show();
+					await targetWindow.setFocus();
+
+					// Hide current window (except main)
+					if (currentWindowLabel !== 'main') {
+						const currentWin = getCurrentWindow();
+						await currentWin.hide();
+					}
+				} else {
+					console.error(`Window '${item.windowLabel}' not found`);
+					// Fallback to URL navigation
+					window.location.href = item.path;
+				}
+			} catch (error) {
+				console.error('Navigation error:', error);
+				// Fallback to URL navigation
+				window.location.href = item.path;
+			}
+		} else {
+			// Browser mode - use URL navigation
+			window.location.href = item.path;
 		}
 	}
 </script>
@@ -44,7 +87,7 @@
 			<button
 				class="nav-item"
 				class:active={item.windowLabel === currentWindowLabel}
-				onclick={() => navigateTo(item.windowLabel)}
+				onclick={() => navigateTo(item)}
 				data-testid="nav-{item.icon}"
 			>
 				{#if item.icon === 'home'}
@@ -96,9 +139,12 @@
 		gap: 0.25rem;
 		padding: 0.5rem 1rem;
 		color: #737373;
-		text-decoration: none;
+		background: none;
+		border: none;
 		border-radius: 8px;
+		cursor: pointer;
 		transition: all 0.15s ease;
+		font-family: inherit;
 	}
 
 	.nav-item:hover {
