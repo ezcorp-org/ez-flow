@@ -237,6 +237,7 @@
 						<div class="entry-actions">
 							<button
 								class="action-button copy-button"
+								class:copied={copiedId === entry.id}
 								onclick={() => copyEntry(entry)}
 								data-testid="copy-entry-btn"
 							>
@@ -490,10 +491,16 @@
 	.copy-button {
 		background: #f4c430;
 		color: #000;
+		transition: background-color 0.2s ease;
 	}
 
 	.copy-button:hover {
 		background: #eab308;
+	}
+
+	.copy-button.copied {
+		background: #22c55e;
+		color: #fff;
 	}
 
 	.delete-button {
