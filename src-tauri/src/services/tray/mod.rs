@@ -8,9 +8,10 @@ use crate::models::HistoryEntry;
 use crate::services::audio::processing::resample_for_whisper;
 use crate::services::storage::{DatabaseState, SettingsState};
 use chrono::Utc;
+use std::sync::Mutex;
 use tauri::{
     menu::{Menu, MenuItem, PredefinedMenuItem},
-    tray::TrayIconBuilder,
+    tray::{TrayIcon, TrayIconBuilder},
     AppHandle, Emitter, Manager,
 };
 use tauri_plugin_clipboard_manager::ClipboardExt;
@@ -27,10 +28,11 @@ pub mod menu_ids {
     pub const QUIT: &str = "quit";
 }
 
-/// State for tray menu items that need to be toggled
+/// State for tray menu items and icon
 pub struct TrayMenuState {
     pub start_recording: MenuItem<tauri::Wry>,
     pub stop_recording: MenuItem<tauri::Wry>,
+    pub tray_icon: Mutex<Option<TrayIcon>>,
 }
 
 /// Set up the system tray icon and menu
@@ -68,13 +70,6 @@ pub fn setup_tray(app: &AppHandle<tauri::Wry>) -> Result<(), Box<dyn std::error:
     let about = MenuItem::with_id(app, menu_ids::ABOUT, "About EZ Flow", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, menu_ids::QUIT, "Quit", true, None::<&str>)?;
 
-    // Store menu items in app state for later access
-    let menu_state = TrayMenuState {
-        start_recording: start_recording.clone(),
-        stop_recording: stop_recording.clone(),
-    };
-    app.manage(menu_state);
-
     // Build menu with separators
     let menu = Menu::with_items(
         app,
@@ -96,7 +91,7 @@ pub fn setup_tray(app: &AppHandle<tauri::Wry>) -> Result<(), Box<dyn std::error:
     let icon = tauri::include_image!("icons/32x32.png");
 
     // Build tray icon
-    let _tray = TrayIconBuilder::new()
+    let tray = TrayIconBuilder::new()
         .icon(icon)
         .menu(&menu)
         .show_menu_on_left_click(true)
@@ -105,6 +100,14 @@ pub fn setup_tray(app: &AppHandle<tauri::Wry>) -> Result<(), Box<dyn std::error:
             handle_menu_event(app, event.id.as_ref());
         })
         .build(app)?;
+
+    // Store menu items and tray icon in app state for later access
+    let menu_state = TrayMenuState {
+        start_recording: start_recording.clone(),
+        stop_recording: stop_recording.clone(),
+        tray_icon: Mutex::new(Some(tray)),
+    };
+    app.manage(menu_state);
 
     tracing::info!("System tray setup complete");
     Ok(())
@@ -149,7 +152,7 @@ fn handle_menu_event(app: &AppHandle<tauri::Wry>, menu_id: &str) {
     }
 }
 
-/// Update tray menu items for recording state
+/// Update tray menu items and icon for recording state
 fn update_menu_for_recording(app: &AppHandle<tauri::Wry>, is_recording: bool) {
     // Get menu items from state and update their enabled state
     let menu_state = app.state::<TrayMenuState>();
@@ -162,6 +165,22 @@ fn update_menu_for_recording(app: &AppHandle<tauri::Wry>, is_recording: bool) {
     // Toggle Stop Recording (enabled when recording)
     if let Err(e) = menu_state.stop_recording.set_enabled(is_recording) {
         tracing::error!("Failed to update stop_recording menu state: {}", e);
+    }
+
+    // Update tray icon based on recording state
+    if let Ok(tray_guard) = menu_state.tray_icon.lock() {
+        if let Some(tray) = tray_guard.as_ref() {
+            let icon = if is_recording {
+                // Recording: inverted colors (yellow background)
+                tauri::include_image!("icons/32x32-recording.png")
+            } else {
+                // Normal: dark background
+                tauri::include_image!("icons/32x32.png")
+            };
+            if let Err(e) = tray.set_icon(Some(icon)) {
+                tracing::error!("Failed to update tray icon: {}", e);
+            }
+        }
     }
 
     tracing::debug!("Menu state updated: is_recording={}", is_recording);
