@@ -319,40 +319,55 @@
         <h3 class="text-xl font-semibold mb-2">Windows</h3>
         <p class="text-ez-muted text-sm mb-6">Windows 10 or later</p>
         <a
-          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_x64-setup.exe"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
           Download .exe
         </a>
-        <p class="text-ez-muted text-xs mt-2">CPU & CUDA versions available</p>
+        <a
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
+          class="block text-ez-muted hover:text-ez-text text-xs mt-3 transition-colors"
+        >
+          or get .msi installer
+        </a>
       </div>
 
       <!-- macOS -->
       <div class="bg-ez-hover border border-ez-border rounded-xl p-8 text-center card-hover">
         <div class="text-4xl mb-4">🍎</div>
         <h3 class="text-xl font-semibold mb-2">macOS</h3>
-        <p class="text-ez-muted text-sm mb-6">macOS 12+ (Intel & Apple Silicon)</p>
+        <p class="text-ez-muted text-sm mb-4">macOS 12 or later</p>
         <a
-          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_aarch64.dmg"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
-          Download .dmg
+          Apple Silicon
         </a>
-        <p class="text-ez-muted text-xs mt-2">Metal GPU acceleration on Apple Silicon</p>
+        <a
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_x64.dmg"
+          class="block border border-ez-border hover:border-ez-muted text-ez-text font-medium px-6 py-2 rounded-lg transition-colors mt-2"
+        >
+          Intel Mac
+        </a>
       </div>
 
       <!-- Linux -->
       <div class="bg-ez-hover border border-ez-border rounded-xl p-8 text-center card-hover">
         <div class="text-4xl mb-4">🐧</div>
         <h3 class="text-xl font-semibold mb-2">Linux</h3>
-        <p class="text-ez-muted text-sm mb-6">Ubuntu, Fedora, and more</p>
+        <p class="text-ez-muted text-sm mb-6">Ubuntu, Fedora, Arch, etc.</p>
         <a
-          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_amd64.AppImage"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
-          Download
+          Download AppImage
         </a>
-        <p class="text-ez-muted text-xs mt-2">.deb, .rpm, AppImage available</p>
+        <a
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
+          class="block text-ez-muted hover:text-ez-text text-xs mt-3 transition-colors"
+        >
+          .deb and .rpm also available
+        </a>
       </div>
     </div>
 

@@ -235,14 +235,16 @@ test.describe('Landing Page', () => {
     test('should display macOS download card', async ({ page }) => {
       const macCard = page.locator('#download').locator('text=macOS').first();
       await expect(macCard).toBeVisible();
-      const downloadLink = page.locator('a:has-text("Download .dmg")');
-      await expect(downloadLink).toBeVisible();
+      const appleLink = page.locator('a:has-text("Apple Silicon")');
+      await expect(appleLink).toBeVisible();
+      const intelLink = page.locator('a:has-text("Intel Mac")');
+      await expect(intelLink).toBeVisible();
     });
 
     test('should display Linux download card', async ({ page }) => {
       const linuxCard = page.locator('#download').locator('text=Linux').first();
       await expect(linuxCard).toBeVisible();
-      const downloadLink = page.locator('a:has-text("View Releases")');
+      const downloadLink = page.locator('a:has-text("Download AppImage")');
       await expect(downloadLink).toBeVisible();
     });
 
@@ -254,10 +256,16 @@ test.describe('Landing Page', () => {
 
     test('download links should have correct hrefs', async ({ page }) => {
       const windowsLink = page.locator('a:has-text("Download .exe")');
-      await expect(windowsLink).toHaveAttribute('href', /github.com.*windows.*exe/);
+      await expect(windowsLink).toHaveAttribute('href', /github.com.*x64-setup\.exe/);
 
-      const macLink = page.locator('a:has-text("Download .dmg")');
-      await expect(macLink).toHaveAttribute('href', /github.com.*macos.*dmg/);
+      const appleLink = page.locator('a:has-text("Apple Silicon")');
+      await expect(appleLink).toHaveAttribute('href', /github.com.*aarch64\.dmg/);
+
+      const intelLink = page.locator('a:has-text("Intel Mac")');
+      await expect(intelLink).toHaveAttribute('href', /github.com.*x64\.dmg/);
+
+      const linuxLink = page.locator('a:has-text("Download AppImage")');
+      await expect(linuxLink).toHaveAttribute('href', /github.com.*AppImage/);
     });
   });
 
