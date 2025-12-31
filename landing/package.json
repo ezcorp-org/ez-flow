@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "bun --hot server.ts",
     "build": "bun build index.html --outdir=dist --minify",
-    "preview": "bun --hot server.ts"
+    "preview": "bun --hot server.ts",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui",
+    "test:debug": "playwright test --debug"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40.0",
     "autoprefixer": "^10.4.16",
     "bun-plugin-tailwind": "^0.1.2",
     "postcss": "^8.4.32",
