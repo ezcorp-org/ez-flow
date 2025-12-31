@@ -2,21 +2,21 @@
   import { onMount } from 'svelte';
 
   // Lucide icons - direct imports for tree-shaking
-  import ShieldCheck from 'lucide-svelte/icons/shield-check';
-  import Zap from 'lucide-svelte/icons/zap';
-  import Target from 'lucide-svelte/icons/target';
-  import Globe from 'lucide-svelte/icons/globe';
-  import Gift from 'lucide-svelte/icons/gift';
-  import Monitor from 'lucide-svelte/icons/monitor';
-  import Lock from 'lucide-svelte/icons/lock';
-  import Github from 'lucide-svelte/icons/github';
-  import MessageCircle from 'lucide-svelte/icons/message-circle';
-  import Download from 'lucide-svelte/icons/download';
-  import Apple from 'lucide-svelte/icons/apple';
-  import Terminal from 'lucide-svelte/icons/terminal';
-  import Mic from 'lucide-svelte/icons/mic';
-  import BookMarked from 'lucide-svelte/icons/book-marked';
-  import Eye from 'lucide-svelte/icons/eye';
+  import ShieldCheck from '@lucide/svelte/icons/shield-check';
+  import Zap from '@lucide/svelte/icons/zap';
+  import Target from '@lucide/svelte/icons/target';
+  import Globe from '@lucide/svelte/icons/globe';
+  import Gift from '@lucide/svelte/icons/gift';
+  import Monitor from '@lucide/svelte/icons/monitor';
+  import Lock from '@lucide/svelte/icons/lock';
+  import Github from '@lucide/svelte/icons/github';
+  import MessageCircle from '@lucide/svelte/icons/message-circle';
+  import Download from '@lucide/svelte/icons/download';
+  import Apple from '@lucide/svelte/icons/apple';
+  import Terminal from '@lucide/svelte/icons/terminal';
+  import Mic from '@lucide/svelte/icons/mic';
+  import BookMarked from '@lucide/svelte/icons/book-marked';
+  import Eye from '@lucide/svelte/icons/eye';
 
   let currentYear = new Date().getFullYear();
   let isMac = false;

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { invoke } from '@tauri-apps/api/core';
 	import { save, open } from '@tauri-apps/plugin-dialog';
-	import { X, Upload, Download, Plus } from 'lucide-svelte';
+	import { X, Upload, Download, Plus } from '@lucide/svelte';
 
 	interface Props {
 		vocabulary?: string[];
