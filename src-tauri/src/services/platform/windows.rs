@@ -7,7 +7,7 @@ use super::text_inject::{PlatformError, TextInjector};
 #[cfg(target_os = "windows")]
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     SendInput, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBDINPUT, KEYBD_EVENT_FLAGS, KEYEVENTF_KEYUP,
-    VIRTUAL_KEY, VK_CONTROL, VK_V,
+    VIRTUAL_KEY, VK_BACK, VK_CONTROL, VK_V, VK_Z,
 };
 
 /// Windows text injector using clipboard + Ctrl+V simulation
@@ -96,6 +96,60 @@ impl TextInjector for WindowsTextInjector {
     fn set_delay(&mut self, delay_ms: u32) {
         self.delay_ms = delay_ms.min(50);
     }
+
+    fn delete_characters(&self, count: usize) -> Result<(), PlatformError> {
+        if count == 0 {
+            return Ok(());
+        }
+
+        tracing::debug!("Deleting {} characters", count);
+
+        unsafe {
+            for _ in 0..count {
+                let inputs = [
+                    Self::create_key_input(VK_BACK, false), // Backspace down
+                    Self::create_key_input(VK_BACK, true),  // Backspace up
+                ];
+
+                let sent = SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
+                if sent != inputs.len() as u32 {
+                    return Err(PlatformError::CommandFailed(format!(
+                        "SendInput only sent {} of {} events",
+                        sent,
+                        inputs.len()
+                    )));
+                }
+
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+
+        Ok(())
+    }
+
+    fn send_undo(&self) -> Result<(), PlatformError> {
+        tracing::debug!("Sending undo command (Ctrl+Z)");
+
+        unsafe {
+            let inputs = [
+                Self::create_key_input(VK_CONTROL, false), // Ctrl down
+                Self::create_key_input(VK_Z, false),       // Z down
+                Self::create_key_input(VK_Z, true),        // Z up
+                Self::create_key_input(VK_CONTROL, true),  // Ctrl up
+            ];
+
+            let sent = SendInput(&inputs, std::mem::size_of::<INPUT>() as i32);
+            if sent != inputs.len() as u32 {
+                return Err(PlatformError::CommandFailed(format!(
+                    "SendInput only sent {} of {} events",
+                    sent,
+                    inputs.len()
+                )));
+            }
+        }
+
+        Ok(())
+    }
 }
 
 // Stub implementation for non-Windows platforms (for compilation)
@@ -123,6 +177,14 @@ impl TextInjector for WindowsTextInjector {
     }
 
     fn set_delay(&mut self, _delay_ms: u32) {}
+
+    fn delete_characters(&self, _count: usize) -> Result<(), PlatformError> {
+        Err(PlatformError::NotSupported)
+    }
+
+    fn send_undo(&self) -> Result<(), PlatformError> {
+        Err(PlatformError::NotSupported)
+    }
 }
 
 #[cfg(test)]

@@ -1,4 +1,15 @@
-import { test, expect, describe } from 'bun:test';
+import { test, expect, describe, mock } from 'bun:test';
+
+// Mock Tauri modules before importing hotkeys (which imports from Tauri)
+mock.module('@tauri-apps/api/core', () => ({
+	invoke: mock(() => Promise.resolve()),
+	transformCallback: mock(() => 0)
+}));
+
+mock.module('@tauri-apps/api/event', () => ({
+	listen: mock(() => Promise.resolve(() => {}))
+}));
+
 import { formatHotkey, parseHotkey, HOTKEY_OPTIONS, MAC_HOTKEY_OPTIONS } from './hotkeys';
 
 describe('formatHotkey', () => {

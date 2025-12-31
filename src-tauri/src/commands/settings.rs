@@ -118,6 +118,41 @@ pub async fn update_setting(
                         settings.model_idle_timeout_secs = v;
                     }
                 }
+                "custom_vocabulary" => {
+                    if let Ok(vocab) = serde_json::from_value::<Vec<String>>(value.clone()) {
+                        settings.custom_vocabulary = vocab;
+                    }
+                }
+                "context_prompt" => {
+                    settings.context_prompt = value.as_str().map(|s| s.to_string());
+                }
+                "use_context_prompt" => {
+                    if let Some(v) = value.as_bool() {
+                        settings.use_context_prompt = v;
+                    }
+                }
+                "preview_enabled" => {
+                    if let Some(v) = value.as_bool() {
+                        settings.preview_enabled = v;
+                    }
+                }
+                "preview_duration_secs" => {
+                    if let Some(v) = value.as_u64() {
+                        // Clamp between 1 and 5 seconds
+                        settings.preview_duration_secs = (v as u32).clamp(1, 5);
+                    }
+                }
+                "preview_show_visualizer" => {
+                    if let Some(v) = value.as_bool() {
+                        settings.preview_show_visualizer = v;
+                    }
+                }
+                "preview_position_x" => {
+                    settings.preview_position_x = value.as_i64().map(|v| v as i32);
+                }
+                "preview_position_y" => {
+                    settings.preview_position_y = value.as_i64().map(|v| v as i32);
+                }
                 _ => {
                     tracing::warn!("Unknown setting key: {}", key);
                 }
@@ -218,6 +253,24 @@ pub fn is_gpu_available_cmd() -> bool {
 #[tauri::command]
 pub fn get_supported_languages() -> Vec<Language> {
     get_languages()
+}
+
+/// Save the preview window position
+#[tauri::command]
+pub async fn save_preview_position(
+    x: i32,
+    y: i32,
+    state: State<'_, SettingsState>,
+) -> Result<(), String> {
+    state
+        .update_field(|settings| {
+            settings.preview_position_x = Some(x);
+            settings.preview_position_y = Some(y);
+        })
+        .await
+        .map_err(|e| e.to_string())?;
+    tracing::debug!("Preview position saved: ({}, {})", x, y);
+    Ok(())
 }
 
 #[cfg(test)]

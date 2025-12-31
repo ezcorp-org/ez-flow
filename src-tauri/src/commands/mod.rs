@@ -10,6 +10,7 @@ pub mod models;
 pub mod settings;
 pub mod text_inject;
 pub mod transcription;
+pub mod vocabulary;
 pub mod workflow;
 
 use tauri::AppHandle;

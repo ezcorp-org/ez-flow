@@ -111,6 +111,107 @@ impl LinuxTextInjector {
 
         Ok(())
     }
+
+    /// Send backspace key on X11 using xdotool
+    fn backspace_x11(&self, count: usize) -> Result<(), PlatformError> {
+        for _ in 0..count {
+            let status = Command::new("xdotool")
+                .args(["key", "BackSpace"])
+                .status()
+                .map_err(|e| PlatformError::CommandFailed(format!("xdotool: {}", e)))?;
+
+            if !status.success() {
+                return Err(PlatformError::CommandFailed(
+                    "xdotool backspace failed".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Send backspace key on Wayland using ydotool
+    fn backspace_wayland_ydotool(&self, count: usize) -> Result<(), PlatformError> {
+        // ydotool keycode for BackSpace is 14
+        for _ in 0..count {
+            let status = Command::new("ydotool")
+                .args(["key", "14:1", "14:0"])
+                .status()
+                .map_err(|e| PlatformError::CommandFailed(format!("ydotool: {}", e)))?;
+
+            if !status.success() {
+                return Err(PlatformError::CommandFailed(
+                    "ydotool backspace failed".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Send backspace key on Wayland using wtype
+    fn backspace_wayland_wtype(&self, count: usize) -> Result<(), PlatformError> {
+        for _ in 0..count {
+            let status = Command::new("wtype")
+                .args(["-P", "BackSpace", "-p", "BackSpace"])
+                .status()
+                .map_err(|e| PlatformError::CommandFailed(format!("wtype: {}", e)))?;
+
+            if !status.success() {
+                return Err(PlatformError::CommandFailed(
+                    "wtype backspace failed".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// Send Ctrl+Z on X11 using xdotool
+    fn undo_x11(&self) -> Result<(), PlatformError> {
+        let status = Command::new("xdotool")
+            .args(["key", "--clearmodifiers", "ctrl+z"])
+            .status()
+            .map_err(|e| PlatformError::CommandFailed(format!("xdotool: {}", e)))?;
+
+        if !status.success() {
+            return Err(PlatformError::CommandFailed(
+                "xdotool undo failed".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Send Ctrl+Z on Wayland using ydotool
+    fn undo_wayland_ydotool(&self) -> Result<(), PlatformError> {
+        // ydotool keycodes: 29=Ctrl, 44=Z
+        let status = Command::new("ydotool")
+            .args(["key", "29:1", "44:1", "44:0", "29:0"])
+            .status()
+            .map_err(|e| PlatformError::CommandFailed(format!("ydotool: {}", e)))?;
+
+        if !status.success() {
+            return Err(PlatformError::CommandFailed(
+                "ydotool undo failed".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
+
+    /// Send Ctrl+Z on Wayland using wtype
+    fn undo_wayland_wtype(&self) -> Result<(), PlatformError> {
+        let status = Command::new("wtype")
+            .args(["-M", "ctrl", "-P", "z", "-p", "z", "-m", "ctrl"])
+            .status()
+            .map_err(|e| PlatformError::CommandFailed(format!("wtype: {}", e)))?;
+
+        if !status.success() {
+            return Err(PlatformError::CommandFailed(
+                "wtype undo failed".to_string(),
+            ));
+        }
+
+        Ok(())
+    }
 }
 
 impl Default for LinuxTextInjector {
@@ -175,6 +276,64 @@ impl TextInjector for LinuxTextInjector {
             DisplayServer::Wayland => Some(
                 "Ensure ydotool or wtype is installed. For ydotool, you may need to start ydotoold with sudo: sudo ydotoold".to_string(),
             ),
+        }
+    }
+
+    fn delete_characters(&self, count: usize) -> Result<(), PlatformError> {
+        if count == 0 {
+            return Ok(());
+        }
+
+        tracing::debug!("Deleting {} characters", count);
+
+        match self.display_server {
+            DisplayServer::X11 => {
+                if Self::has_xdotool() {
+                    self.backspace_x11(count)
+                } else {
+                    Err(PlatformError::CommandFailed(
+                        "xdotool not found. Install with: sudo apt install xdotool".to_string(),
+                    ))
+                }
+            }
+            DisplayServer::Wayland => {
+                if Self::has_ydotool() {
+                    self.backspace_wayland_ydotool(count)
+                } else if Self::has_wtype() {
+                    self.backspace_wayland_wtype(count)
+                } else {
+                    Err(PlatformError::CommandFailed(
+                        "Neither ydotool nor wtype found. Install with: sudo apt install ydotool or wtype".to_string(),
+                    ))
+                }
+            }
+        }
+    }
+
+    fn send_undo(&self) -> Result<(), PlatformError> {
+        tracing::debug!("Sending undo command (Ctrl+Z)");
+
+        match self.display_server {
+            DisplayServer::X11 => {
+                if Self::has_xdotool() {
+                    self.undo_x11()
+                } else {
+                    Err(PlatformError::CommandFailed(
+                        "xdotool not found. Install with: sudo apt install xdotool".to_string(),
+                    ))
+                }
+            }
+            DisplayServer::Wayland => {
+                if Self::has_ydotool() {
+                    self.undo_wayland_ydotool()
+                } else if Self::has_wtype() {
+                    self.undo_wayland_wtype()
+                } else {
+                    Err(PlatformError::CommandFailed(
+                        "Neither ydotool nor wtype found. Install with: sudo apt install ydotool or wtype".to_string(),
+                    ))
+                }
+            }
         }
     }
 }

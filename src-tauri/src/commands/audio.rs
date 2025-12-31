@@ -416,13 +416,21 @@ pub async fn stop_recording_and_transcribe(
     // Resample to 16kHz for Whisper if needed
     let samples = resample_for_whisper(buffer).map_err(|e| e.to_string())?;
 
-    // Get model_id from settings for auto-loading
-    let model_id = settings_state.get().await.model_id.clone();
+    // Get settings for model_id and prompt configuration
+    let settings = settings_state.get().await;
+    let model_id = settings.model_id.clone();
 
-    // Transcribe with auto-load fallback
+    // Build initial prompt from custom vocabulary and context prompt
+    let initial_prompt = crate::services::transcription::build_initial_prompt(
+        &settings.custom_vocabulary,
+        settings.context_prompt.as_deref(),
+        settings.use_context_prompt,
+    );
+
+    // Transcribe with auto-load fallback and prompt
     let result = transcription_state
         .engine
-        .transcribe_with_auto_load(samples, &model_id)
+        .transcribe_with_auto_load_and_prompt(samples, &model_id, initial_prompt.as_deref())
         .await
         .map_err(|e| e.to_string())?;
 

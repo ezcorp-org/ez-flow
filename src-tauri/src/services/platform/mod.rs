@@ -78,6 +78,18 @@ impl TextInjectorState {
         let injector = self.injector.lock().await;
         injector.get_permission_instructions()
     }
+
+    /// Delete the last N characters
+    pub async fn delete_characters(&self, count: usize) -> Result<(), PlatformError> {
+        let injector = self.injector.lock().await;
+        injector.delete_characters(count)
+    }
+
+    /// Send undo command
+    pub async fn send_undo(&self) -> Result<(), PlatformError> {
+        let injector = self.injector.lock().await;
+        injector.send_undo()
+    }
 }
 
 impl Default for TextInjectorState {
@@ -97,6 +109,14 @@ impl TextInjector for StubInjector {
     }
 
     fn set_delay(&mut self, _delay_ms: u32) {}
+
+    fn delete_characters(&self, _count: usize) -> Result<(), PlatformError> {
+        Err(PlatformError::NotSupported)
+    }
+
+    fn send_undo(&self) -> Result<(), PlatformError> {
+        Err(PlatformError::NotSupported)
+    }
 }
 
 #[cfg(test)]

@@ -141,6 +141,7 @@ pub fn run() {
             commands::settings::get_gpu_backend,
             commands::settings::is_gpu_available_cmd,
             commands::settings::get_supported_languages,
+            commands::settings::save_preview_position,
             // History commands
             commands::history::save_history,
             commands::history::get_history,
@@ -148,6 +149,9 @@ pub fn run() {
             commands::history::delete_history_entry,
             commands::history::clear_history,
             commands::history::get_history_count,
+            // Vocabulary commands
+            commands::vocabulary::export_vocabulary,
+            commands::vocabulary::import_vocabulary,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

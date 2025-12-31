@@ -6,7 +6,8 @@ const mockListen = mock(() => Promise.resolve(() => {}));
 const mockWriteText = mock(() => Promise.resolve());
 
 mock.module('@tauri-apps/api/core', () => ({
-	invoke: mockInvoke
+	invoke: mockInvoke,
+	transformCallback: mock(() => 0)
 }));
 
 mock.module('@tauri-apps/api/event', () => ({

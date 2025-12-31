@@ -89,6 +89,66 @@ impl TextInjector for MacOSTextInjector {
                 .to_string(),
         )
     }
+
+    fn delete_characters(&self, count: usize) -> Result<(), PlatformError> {
+        if count == 0 {
+            return Ok(());
+        }
+
+        tracing::debug!("Deleting {} characters", count);
+
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+            .map_err(|_| PlatformError::EventSourceError)?;
+
+        // Key code for Backspace/Delete
+        const DELETE_KEY: CGKeyCode = 0x33; // 51
+
+        for _ in 0..count {
+            let key_down = CGEvent::new_keyboard_event(source.clone(), DELETE_KEY, true)
+                .map_err(|_| PlatformError::EventSourceError)?;
+            let key_up = CGEvent::new_keyboard_event(source.clone(), DELETE_KEY, false)
+                .map_err(|_| PlatformError::EventSourceError)?;
+
+            key_down.post(CGEventTapLocation::HID);
+            key_up.post(CGEventTapLocation::HID);
+
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+
+        Ok(())
+    }
+
+    fn send_undo(&self) -> Result<(), PlatformError> {
+        tracing::debug!("Sending undo command (Cmd+Z)");
+
+        let source = CGEventSource::new(CGEventSourceStateID::HIDSystemState)
+            .map_err(|_| PlatformError::EventSourceError)?;
+
+        // Key codes: Command = 0x37 (55), Z = 0x06 (6)
+        const CMD_KEY: CGKeyCode = 0x37;
+        const Z_KEY: CGKeyCode = 0x06;
+
+        let cmd_down = CGEvent::new_keyboard_event(source.clone(), CMD_KEY, true)
+            .map_err(|_| PlatformError::EventSourceError)?;
+        let z_down = CGEvent::new_keyboard_event(source.clone(), Z_KEY, true)
+            .map_err(|_| PlatformError::EventSourceError)?;
+        let z_up = CGEvent::new_keyboard_event(source.clone(), Z_KEY, false)
+            .map_err(|_| PlatformError::EventSourceError)?;
+        let cmd_up = CGEvent::new_keyboard_event(source, CMD_KEY, false)
+            .map_err(|_| PlatformError::EventSourceError)?;
+
+        // Set command flag on the Z key events
+        cmd_down.set_flags(CGEventFlags::CGEventFlagCommand);
+        z_down.set_flags(CGEventFlags::CGEventFlagCommand);
+
+        // Post events
+        cmd_down.post(CGEventTapLocation::HID);
+        z_down.post(CGEventTapLocation::HID);
+        z_up.post(CGEventTapLocation::HID);
+        cmd_up.post(CGEventTapLocation::HID);
+
+        Ok(())
+    }
 }
 
 // Stub implementation for non-macOS platforms (for compilation)
@@ -116,6 +176,14 @@ impl TextInjector for MacOSTextInjector {
     }
 
     fn set_delay(&mut self, _delay_ms: u32) {}
+
+    fn delete_characters(&self, _count: usize) -> Result<(), PlatformError> {
+        Err(PlatformError::NotSupported)
+    }
+
+    fn send_undo(&self) -> Result<(), PlatformError> {
+        Err(PlatformError::NotSupported)
+    }
 }
 
 #[cfg(test)]

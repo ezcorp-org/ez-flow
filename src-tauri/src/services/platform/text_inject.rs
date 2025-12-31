@@ -46,6 +46,12 @@ pub trait TextInjector: Send + Sync {
 
     /// Set the delay between keystrokes in milliseconds
     fn set_delay(&mut self, delay_ms: u32);
+
+    /// Delete the last N characters (simulates backspace)
+    fn delete_characters(&self, count: usize) -> Result<(), PlatformError>;
+
+    /// Send undo command (Ctrl+Z on Windows/Linux, Cmd+Z on macOS)
+    fn send_undo(&self) -> Result<(), PlatformError>;
 }
 
 #[cfg(test)]

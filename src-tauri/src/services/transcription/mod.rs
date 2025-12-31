@@ -9,7 +9,7 @@ pub mod languages;
 pub mod models;
 
 pub use decoder::decode_audio_file;
-pub use engine::WhisperEngine;
+pub use engine::{build_initial_prompt, ChunkTranscriptionResult, WhisperEngine};
 pub use gpu::{detect_gpu_backend, is_gpu_available, GpuBackend, GpuInfo};
 pub use languages::{get_language_by_code, get_languages, is_valid_language_code, Language};
 pub use models::{

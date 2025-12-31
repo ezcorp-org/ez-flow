@@ -5,6 +5,7 @@
 use std::path::Path;
 
 pub mod capture;
+pub mod chunking;
 pub mod processing;
 
 /// Supported audio file extensions for transcription
@@ -19,6 +20,7 @@ pub fn is_supported_format(path: &Path) -> bool {
 }
 
 pub use capture::AudioCaptureService;
+pub use chunking::{AudioChunk, ChunkConfig, ChunkedAudioBuffer};
 pub use processing::{calculate_audio_level, resample_for_whisper, stereo_to_mono, AudioBuffer};
 
 use thiserror::Error;

@@ -14,6 +14,9 @@
   import Download from 'lucide-svelte/icons/download';
   import Apple from 'lucide-svelte/icons/apple';
   import Terminal from 'lucide-svelte/icons/terminal';
+  import Mic from 'lucide-svelte/icons/mic';
+  import BookMarked from 'lucide-svelte/icons/book-marked';
+  import Eye from 'lucide-svelte/icons/eye';
 
   let currentYear = new Date().getFullYear();
   let isMac = false;
@@ -37,6 +40,21 @@
       icon: Target,
       title: 'Push-to-Talk',
       description: 'Hold your hotkey, speak, release. Text appears at your cursor. That simple.',
+    },
+    {
+      icon: Mic,
+      title: 'Voice Commands',
+      description: 'Say "new line", "delete that", or "undo" hands-free. Control your text with your voice.',
+    },
+    {
+      icon: BookMarked,
+      title: 'Custom Vocabulary',
+      description: 'Add medical, legal, or technical terms. Teach it your jargon for perfect accuracy.',
+    },
+    {
+      icon: Eye,
+      title: 'Live Preview',
+      description: 'See your transcription as you speak. Floating window with real-time streaming updates.',
     },
     {
       icon: Globe,

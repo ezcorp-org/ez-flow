@@ -14,6 +14,34 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 export type WorkflowState = 'idle' | 'recording' | 'transcribing' | 'injecting';
 
 /**
+ * Partial transcription event payload
+ */
+export interface PartialTranscriptionEvent {
+	text: string;
+	chunk_index: number;
+	timestamp_ms: number;
+	is_final: boolean;
+}
+
+/**
+ * Final transcription event payload
+ */
+export interface FinalTranscriptionEvent {
+	text: string;
+	total_chunks: number;
+	duration_secs: number;
+	reconciled: boolean;
+}
+
+/**
+ * Streaming error event payload
+ */
+export interface StreamingErrorEvent {
+	message: string;
+	chunk_index: number | null;
+}
+
+/**
  * Push-to-talk result
  */
 export interface PushToTalkResult {
@@ -113,6 +141,33 @@ export async function onHotkeyRecordingStopped(callback: () => void): Promise<Un
 }
 
 /**
+ * Listen for partial transcription events (streaming)
+ */
+export async function onPartialTranscription(
+	callback: (event: PartialTranscriptionEvent) => void
+): Promise<UnlistenFn> {
+	return listen<PartialTranscriptionEvent>('transcription://partial', (e) => callback(e.payload));
+}
+
+/**
+ * Listen for final transcription events (streaming)
+ */
+export async function onFinalTranscription(
+	callback: (event: FinalTranscriptionEvent) => void
+): Promise<UnlistenFn> {
+	return listen<FinalTranscriptionEvent>('transcription://complete', (e) => callback(e.payload));
+}
+
+/**
+ * Listen for streaming transcription errors
+ */
+export async function onStreamingError(
+	callback: (event: StreamingErrorEvent) => void
+): Promise<UnlistenFn> {
+	return listen<StreamingErrorEvent>('transcription://error', (e) => callback(e.payload));
+}
+
+/**
  * Setup push-to-talk event handlers
  * Returns a cleanup function to remove all listeners
  */
@@ -121,6 +176,9 @@ export async function setupPushToTalk(handlers: {
 	onError?: (error: PushToTalkError) => void;
 	onMetrics?: (metrics: PushToTalkMetrics) => void;
 	onComplete?: (result: PushToTalkResult) => void;
+	onPartialTranscription?: (event: PartialTranscriptionEvent) => void;
+	onFinalTranscription?: (event: FinalTranscriptionEvent) => void;
+	onStreamingError?: (event: StreamingErrorEvent) => void;
 }): Promise<() => void> {
 	const unlisteners: UnlistenFn[] = [];
 
@@ -167,6 +225,19 @@ export async function setupPushToTalk(handlers: {
 	// Listen for metrics from backend
 	if (handlers.onMetrics) {
 		unlisteners.push(await onWorkflowMetrics(handlers.onMetrics));
+	}
+
+	// Listen for streaming transcription events
+	if (handlers.onPartialTranscription) {
+		unlisteners.push(await onPartialTranscription(handlers.onPartialTranscription));
+	}
+
+	if (handlers.onFinalTranscription) {
+		unlisteners.push(await onFinalTranscription(handlers.onFinalTranscription));
+	}
+
+	if (handlers.onStreamingError) {
+		unlisteners.push(await onStreamingError(handlers.onStreamingError));
 	}
 
 	// Return cleanup function

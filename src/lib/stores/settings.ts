@@ -11,9 +11,23 @@ import { invoke } from '@tauri-apps/api/core';
 export type RecordingMode = 'push_to_talk' | 'toggle';
 
 /**
+ * Streaming transcription mode options
+ */
+export type StreamingMode = 'speed' | 'balanced' | 'accuracy';
+
+/**
  * Indicator position options
  */
 export type IndicatorPosition = 'cursor' | 'top_right' | 'bottom_right' | 'hidden';
+
+/**
+ * Voice command settings
+ */
+export interface VoiceCommandSettings {
+	enabled: boolean;
+	require_prefix: boolean;
+	prefix: string;
+}
 
 /**
  * Settings interface matching Rust struct
@@ -30,6 +44,20 @@ export interface Settings {
 	injection_delay_ms: number;
 	onboarding_completed: boolean;
 	onboarding_skipped: boolean;
+	use_gpu: boolean;
+	auto_check_updates: boolean;
+	model_idle_timeout_secs: number;
+	custom_vocabulary: string[];
+	context_prompt: string | null;
+	use_context_prompt: boolean;
+	preview_enabled: boolean;
+	preview_duration_secs: number;
+	preview_show_visualizer: boolean;
+	preview_position_x: number | null;
+	preview_position_y: number | null;
+	voice_commands: VoiceCommandSettings;
+	streaming_enabled: boolean;
+	streaming_mode: StreamingMode;
 }
 
 /**
@@ -46,7 +74,25 @@ export const defaultSettings: Settings = {
 	auto_copy: true,
 	injection_delay_ms: 0,
 	onboarding_completed: false,
-	onboarding_skipped: false
+	onboarding_skipped: false,
+	use_gpu: true,
+	auto_check_updates: true,
+	model_idle_timeout_secs: 300,
+	custom_vocabulary: [],
+	context_prompt: null,
+	use_context_prompt: false,
+	preview_enabled: true,
+	preview_duration_secs: 3,
+	preview_show_visualizer: true,
+	preview_position_x: null,
+	preview_position_y: null,
+	voice_commands: {
+		enabled: true,
+		require_prefix: false,
+		prefix: 'command'
+	},
+	streaming_enabled: true,
+	streaming_mode: 'balanced'
 };
 
 /**

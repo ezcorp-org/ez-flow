@@ -63,6 +63,19 @@
         "visible": false,
         "center": true,
         "url": "/onboarding"
+      },
+      {
+        "label": "preview",
+        "title": "Transcription Preview",
+        "width": 360,
+        "height": 180,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "transparent": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "url": "/preview"
       }
     ],
     "security": {

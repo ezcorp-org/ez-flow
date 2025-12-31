@@ -7,6 +7,8 @@
 	import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 	import NavBar from '$lib/components/NavBar.svelte';
 	import KeybindCapture from '$lib/components/KeybindCapture.svelte';
+	import VocabularyManager from '$lib/components/VocabularyManager.svelte';
+	import ContextPromptEditor from '$lib/components/ContextPromptEditor.svelte';
 
 	interface ModelInfo {
 		id: string;
@@ -128,6 +130,18 @@
 		await settings.updateField('language', value);
 	}
 
+	// Handle streaming enabled toggle
+	async function handleStreamingEnabledChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		await settings.updateField('streaming_enabled', target.checked);
+	}
+
+	// Handle streaming mode change
+	async function handleStreamingModeChange(e: Event) {
+		const target = e.target as HTMLSelectElement;
+		await settings.updateField('streaming_mode', target.value as 'speed' | 'balanced' | 'accuracy');
+	}
+
 	// Handle launch at login toggle
 	async function handleLaunchAtLoginChange(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -156,6 +170,66 @@
 	async function handleInjectionDelayChange(e: Event) {
 		const target = e.target as HTMLInputElement;
 		await settings.updateField('injection_delay_ms', parseInt(target.value, 10));
+	}
+
+	// Handle preview enabled toggle
+	async function handlePreviewEnabledChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		await settings.updateField('preview_enabled', target.checked);
+	}
+
+	// Handle preview duration change
+	async function handlePreviewDurationChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		await settings.updateField('preview_duration_secs', parseInt(target.value, 10));
+	}
+
+	// Handle preview visualizer toggle
+	async function handlePreviewVisualizerChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		await settings.updateField('preview_show_visualizer', target.checked);
+	}
+
+	// Handle custom vocabulary change
+	async function handleVocabularyChange(vocabulary: string[]) {
+		await settings.updateField('custom_vocabulary', vocabulary);
+	}
+
+	// Handle context prompt change
+	async function handleContextPromptChange(prompt: string | null) {
+		await settings.updateField('context_prompt', prompt);
+	}
+
+	// Handle use context prompt toggle
+	async function handleUseContextPromptChange(use: boolean) {
+		await settings.updateField('use_context_prompt', use);
+	}
+
+	// Handle voice commands enabled toggle
+	async function handleVoiceCommandsEnabledChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		await settings.updateField('voice_commands', {
+			...$settings.voice_commands,
+			enabled: target.checked
+		});
+	}
+
+	// Handle voice commands require prefix toggle
+	async function handleVoiceCommandsRequirePrefixChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		await settings.updateField('voice_commands', {
+			...$settings.voice_commands,
+			require_prefix: target.checked
+		});
+	}
+
+	// Handle voice commands prefix change
+	async function handleVoiceCommandsPrefixChange(e: Event) {
+		const target = e.target as HTMLInputElement;
+		await settings.updateField('voice_commands', {
+			...$settings.voice_commands,
+			prefix: target.value
+		});
 	}
 
 	// Export settings to file
@@ -331,6 +405,68 @@
 				{/each}
 			</select>
 		</div>
+
+		<div class="setting-item">
+			<label class="checkbox-label" data-testid="streaming-enabled-toggle">
+				<input
+					type="checkbox"
+					checked={$settings.streaming_enabled}
+					onchange={handleStreamingEnabledChange}
+				/>
+				<span>Enable streaming transcription</span>
+			</label>
+			<p class="setting-description">
+				Show transcription in real-time as you speak (requires slightly more processing power)
+			</p>
+		</div>
+
+		<div class="setting-item">
+			<label class="setting-label" for="streaming-mode">Streaming Mode</label>
+			<select
+				id="streaming-mode"
+				data-testid="streaming-mode-selector"
+				class="setting-select"
+				value={$settings.streaming_mode}
+				onchange={handleStreamingModeChange}
+				disabled={!$settings.streaming_enabled}
+			>
+				<option value="speed">Speed (fastest, no final cleanup)</option>
+				<option value="balanced">Balanced (re-processes ending)</option>
+				<option value="accuracy">Accuracy (full re-transcription)</option>
+			</select>
+			<p class="setting-description">
+				Trade-off between transcription speed and final accuracy
+			</p>
+		</div>
+	</section>
+
+	<!-- Custom Vocabulary & Prompts Section -->
+	<section class="settings-section">
+		<h2 class="section-title">Custom Vocabulary & Prompts</h2>
+		<p class="section-description">
+			Improve transcription accuracy by adding domain-specific terms and context
+		</p>
+
+		<div class="setting-item">
+			<span class="setting-label">Custom Vocabulary</span>
+			<VocabularyManager
+				vocabulary={$settings.custom_vocabulary}
+				onChange={handleVocabularyChange}
+			/>
+			<p class="setting-description">
+				Add specialized terms, acronyms, or proper nouns to improve recognition
+			</p>
+		</div>
+
+		<div class="setting-item">
+			<span class="setting-label">Context Prompt</span>
+			<ContextPromptEditor
+				contextPrompt={$settings.context_prompt}
+				useContextPrompt={$settings.use_context_prompt}
+				onContextPromptChange={handleContextPromptChange}
+				onUseContextPromptChange={handleUseContextPromptChange}
+			/>
+		</div>
 	</section>
 
 	<!-- Model Management Section -->
@@ -420,6 +556,139 @@
 					<option value={pos.value}>{pos.label}</option>
 				{/each}
 			</select>
+		</div>
+	</section>
+
+	<!-- Preview Section -->
+	<section class="settings-section">
+		<h2 class="section-title">Preview Window</h2>
+		<p class="section-description">Configure the floating preview window that shows transcribed text</p>
+
+		<div class="setting-item">
+			<label class="checkbox-label" data-testid="preview-enabled-toggle">
+				<input
+					type="checkbox"
+					checked={$settings.preview_enabled}
+					onchange={handlePreviewEnabledChange}
+				/>
+				<span>Show preview window after transcription</span>
+			</label>
+		</div>
+
+		<div class="setting-item">
+			<label class="setting-label" for="preview-duration">
+				Display Duration: {$settings.preview_duration_secs}s
+			</label>
+			<input
+				type="range"
+				id="preview-duration"
+				class="setting-slider"
+				min="1"
+				max="5"
+				step="1"
+				value={$settings.preview_duration_secs}
+				oninput={handlePreviewDurationChange}
+				disabled={!$settings.preview_enabled}
+				data-testid="preview-duration-slider"
+			/>
+			<p class="setting-description">
+				How long to show the preview window before auto-hiding (1-5 seconds)
+			</p>
+		</div>
+
+		<div class="setting-item">
+			<label class="checkbox-label" data-testid="preview-visualizer-toggle">
+				<input
+					type="checkbox"
+					checked={$settings.preview_show_visualizer}
+					onchange={handlePreviewVisualizerChange}
+					disabled={!$settings.preview_enabled}
+				/>
+				<span>Show audio visualizer in preview</span>
+			</label>
+		</div>
+	</section>
+
+	<!-- Voice Commands Section -->
+	<section class="settings-section">
+		<h2 class="section-title">Voice Commands</h2>
+		<p class="section-description">Convert spoken commands into punctuation, formatting, and editing actions</p>
+
+		<div class="setting-item">
+			<label class="checkbox-label" data-testid="voice-commands-enabled-toggle">
+				<input
+					type="checkbox"
+					checked={$settings.voice_commands.enabled}
+					onchange={handleVoiceCommandsEnabledChange}
+				/>
+				<span>Enable voice commands</span>
+			</label>
+			<p class="setting-description">
+				Say "period", "comma", "new line", "new paragraph", "undo", etc.
+			</p>
+		</div>
+
+		<div class="setting-item">
+			<label class="checkbox-label" data-testid="voice-commands-require-prefix-toggle">
+				<input
+					type="checkbox"
+					checked={$settings.voice_commands.require_prefix}
+					onchange={handleVoiceCommandsRequirePrefixChange}
+					disabled={!$settings.voice_commands.enabled}
+				/>
+				<span>Require prefix before commands</span>
+			</label>
+			<p class="setting-description">
+				When enabled, say "{$settings.voice_commands.prefix} period" instead of just "period"
+			</p>
+		</div>
+
+		<div class="setting-item">
+			<label class="setting-label" for="voice-command-prefix">Command Prefix</label>
+			<input
+				type="text"
+				id="voice-command-prefix"
+				class="setting-input"
+				value={$settings.voice_commands.prefix}
+				onchange={handleVoiceCommandsPrefixChange}
+				disabled={!$settings.voice_commands.enabled || !$settings.voice_commands.require_prefix}
+				placeholder="command"
+				data-testid="voice-command-prefix-input"
+			/>
+			<p class="setting-description">
+				The word to say before each command (e.g., "command", "insert", "type")
+			</p>
+		</div>
+
+		<div class="voice-commands-help">
+			<h3 class="help-title">Available Commands</h3>
+			<div class="commands-grid">
+				<div class="command-group">
+					<h4>Punctuation</h4>
+					<ul>
+						<li><code>period</code> / <code>full stop</code> - .</li>
+						<li><code>comma</code> - ,</li>
+						<li><code>question mark</code> - ?</li>
+						<li><code>exclamation point</code> - !</li>
+						<li><code>colon</code> - :</li>
+						<li><code>semicolon</code> - ;</li>
+					</ul>
+				</div>
+				<div class="command-group">
+					<h4>Formatting</h4>
+					<ul>
+						<li><code>new line</code> - line break</li>
+						<li><code>new paragraph</code> - paragraph break</li>
+					</ul>
+				</div>
+				<div class="command-group">
+					<h4>Editing</h4>
+					<ul>
+						<li><code>delete that</code> - backspace</li>
+						<li><code>undo</code> - undo last action</li>
+					</ul>
+				</div>
+			</div>
 		</div>
 	</section>
 
@@ -930,5 +1199,76 @@
 		color: #737373;
 		min-width: 35px;
 		text-align: right;
+	}
+
+	/* Voice Commands Styles */
+	.setting-input {
+		width: 100%;
+		max-width: 200px;
+		padding: 0.5rem 0.75rem;
+		background: #171717;
+		border: 1px solid #262626;
+		border-radius: 6px;
+		color: #e5e5e5;
+		font-size: 0.875rem;
+	}
+
+	.setting-input:focus {
+		outline: none;
+		border-color: #f4c430;
+	}
+
+	.setting-input:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.voice-commands-help {
+		margin-top: 1.5rem;
+		padding: 1rem;
+		background: #171717;
+		border: 1px solid #262626;
+		border-radius: 8px;
+	}
+
+	.help-title {
+		font-size: 0.875rem;
+		font-weight: 500;
+		color: #a3a3a3;
+		margin-bottom: 1rem;
+	}
+
+	.commands-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+		gap: 1rem;
+	}
+
+	.command-group h4 {
+		font-size: 0.8125rem;
+		font-weight: 500;
+		color: #e5e5e5;
+		margin-bottom: 0.5rem;
+	}
+
+	.command-group ul {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.command-group li {
+		font-size: 0.75rem;
+		color: #737373;
+		margin-bottom: 0.25rem;
+	}
+
+	.command-group code {
+		background: #262626;
+		padding: 0.125rem 0.375rem;
+		border-radius: 4px;
+		color: #f4c430;
+		font-family: monospace;
+		font-size: 0.6875rem;
 	}
 </style>

@@ -5,6 +5,8 @@
 use crate::commands::{AudioState, TranscriptionState};
 use crate::services::platform::TextInjectorState;
 use crate::services::storage::{DatabaseState, SettingsState};
+use crate::services::ui::{emit_preview_text, position_preview, PreviewState};
+use crate::services::voice_commands::{CommandAction, CommandParser};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, State};
@@ -118,11 +120,28 @@ pub async fn push_to_talk_complete(
     };
     let transcription_time_ms = transcribe_start.elapsed().as_millis() as u64;
 
-    let text = transcription_result.text.trim().to_string();
+    let raw_text = transcription_result.text.trim().to_string();
 
-    // Skip injection if text is empty
-    if text.is_empty() {
-        tracing::warn!("Transcription returned empty text, skipping injection");
+    // Get settings
+    let settings = settings_state.get().await;
+    let preview_enabled = settings.preview_enabled;
+
+    // Parse voice commands AFTER transcription, BEFORE text injection
+    let parser = CommandParser::new(settings.voice_commands.clone());
+    let parse_result = parser.parse_advanced(&raw_text);
+    let text = parse_result.text.clone();
+    let actions = parse_result.actions;
+
+    tracing::debug!(
+        "Voice command parsing: raw='{}' -> processed='{}', actions={:?}",
+        raw_text,
+        text,
+        actions.len()
+    );
+
+    // Skip injection if text is empty and no actions
+    if text.is_empty() && actions.is_empty() {
+        tracing::warn!("Transcription returned empty text and no actions, skipping injection");
         let _ = app.emit("workflow://state-changed", "idle");
         update_completion_time();
         return Ok(PushToTalkResult {
@@ -134,21 +153,68 @@ pub async fn push_to_talk_complete(
         });
     }
 
-    // Inject text
-    let _ = app.emit("workflow://state-changed", "injecting");
-    let inject_start = Instant::now();
-    if let Err(e) = text_injector_state.inject_text(&text).await {
-        tracing::error!("Text injection failed: {}", e);
-        let _ = app.emit(
-            "workflow://error",
-            PushToTalkError {
-                phase: "injection".to_string(),
-                message: e.to_string(),
-            },
+    // Show preview with transcribed text
+    if preview_enabled {
+        // Position preview window
+        let _ = position_preview(
+            &app,
+            settings.preview_position_x,
+            settings.preview_position_y,
         );
-        let _ = app.emit("workflow://state-changed", "idle");
-        return Err(format!("Text injection failed: {}", e));
+        // Emit preview text
+        let _ = emit_preview_text(&app, &text, PreviewState::Preview);
     }
+
+    // Inject text and execute voice command actions
+    let _ = app.emit("workflow://state-changed", "injecting");
+    if preview_enabled {
+        let _ = emit_preview_text(&app, &text, PreviewState::Injecting);
+    }
+    let inject_start = Instant::now();
+
+    // Inject the processed text (if not empty)
+    if !text.is_empty() {
+        if let Err(e) = text_injector_state.inject_text(&text).await {
+            tracing::error!("Text injection failed: {}", e);
+            if preview_enabled {
+                let _ = emit_preview_text(&app, &text, PreviewState::Error);
+            }
+            let _ = app.emit(
+                "workflow://error",
+                PushToTalkError {
+                    phase: "injection".to_string(),
+                    message: e.to_string(),
+                },
+            );
+            let _ = app.emit("workflow://state-changed", "idle");
+            return Err(format!("Text injection failed: {}", e));
+        }
+    }
+
+    // Execute voice command actions (delete, undo, etc.)
+    for action in &actions {
+        match action {
+            CommandAction::DeleteCharacters(count) => {
+                tracing::debug!("Executing delete action: {} characters", count);
+                if let Err(e) = text_injector_state.delete_characters(*count).await {
+                    tracing::warn!("Delete action failed: {}", e);
+                }
+            }
+            CommandAction::Undo => {
+                tracing::debug!("Executing undo action");
+                if let Err(e) = text_injector_state.send_undo().await {
+                    tracing::warn!("Undo action failed: {}", e);
+                }
+            }
+            CommandAction::InsertText(_) => {
+                // Text insertion is already handled in the parsed text
+            }
+            CommandAction::CapitalizeNext => {
+                // Capitalization is already handled in the parsed text
+            }
+        }
+    }
+
     let injection_time_ms = inject_start.elapsed().as_millis() as u64;
 
     let total_latency_ms = start.elapsed().as_millis() as u64;
@@ -184,6 +250,11 @@ pub async fn push_to_talk_complete(
     // Update cooldown and return to idle
     update_completion_time();
     let _ = app.emit("workflow://state-changed", "idle");
+
+    // Emit preview complete state
+    if preview_enabled {
+        let _ = emit_preview_text(&app, &text, PreviewState::Complete);
+    }
 
     Ok(PushToTalkResult {
         text,

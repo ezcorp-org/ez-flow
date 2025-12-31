@@ -3,7 +3,8 @@
 //! Handles microphone input and buffering for transcription.
 
 use super::{
-    processing::{calculate_audio_level, AudioBuffer},
+    chunking::{AudioChunk, ChunkConfig, ChunkedAudioBuffer},
+    processing::{calculate_audio_level, AudioBuffer, WHISPER_SAMPLE_RATE},
     AudioDevice, AudioError, RecordingResult,
 };
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -30,6 +31,10 @@ pub struct AudioCaptureService {
     current_level: Arc<Mutex<f32>>,
     /// Buffer for level calculation to avoid allocation in callback
     level_buffer: Arc<Mutex<Vec<f32>>>,
+    /// Chunked buffer for streaming transcription
+    chunked_buffer: Arc<Mutex<ChunkedAudioBuffer>>,
+    /// Whether streaming mode is enabled
+    streaming_enabled: Arc<AtomicBool>,
 }
 
 impl AudioCaptureService {
@@ -43,10 +48,12 @@ impl AudioCaptureService {
             .default_input_config()
             .map_err(|e| AudioError::StreamError(e.to_string()))?;
 
+        let sample_rate = config.sample_rate().0;
+
         tracing::info!(
             "Audio capture initialized: {} @ {}Hz, {} channels",
             device.name().unwrap_or_default(),
-            config.sample_rate().0,
+            sample_rate,
             config.channels()
         );
 
@@ -60,6 +67,8 @@ impl AudioCaptureService {
             recording_start: None,
             current_level: Arc::new(Mutex::new(0.0)),
             level_buffer: Arc::new(Mutex::new(Vec::with_capacity(LEVEL_CALCULATION_SAMPLES))),
+            chunked_buffer: Arc::new(Mutex::new(ChunkedAudioBuffer::with_defaults(sample_rate))),
+            streaming_enabled: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -74,6 +83,7 @@ impl AudioCaptureService {
         let config = device
             .default_input_config()
             .map_err(|e| AudioError::StreamError(e.to_string()))?;
+        let sample_rate = config.sample_rate().0;
 
         Ok(Self {
             device,
@@ -85,6 +95,8 @@ impl AudioCaptureService {
             recording_start: None,
             current_level: Arc::new(Mutex::new(0.0)),
             level_buffer: Arc::new(Mutex::new(Vec::with_capacity(LEVEL_CALCULATION_SAMPLES))),
+            chunked_buffer: Arc::new(Mutex::new(ChunkedAudioBuffer::with_defaults(sample_rate))),
+            streaming_enabled: Arc::new(AtomicBool::new(false)),
         })
     }
 
@@ -110,6 +122,17 @@ impl AudioCaptureService {
         Ok(devices)
     }
 
+    /// Enable or disable streaming mode
+    pub fn set_streaming_enabled(&mut self, enabled: bool) {
+        self.streaming_enabled.store(enabled, Ordering::SeqCst);
+        tracing::info!("Streaming mode: {}", if enabled { "enabled" } else { "disabled" });
+    }
+
+    /// Check if streaming mode is enabled
+    pub fn is_streaming_enabled(&self) -> bool {
+        self.streaming_enabled.load(Ordering::SeqCst)
+    }
+
     /// Start recording audio
     pub fn start(&mut self) -> Result<(), AudioError> {
         if self.is_recording.load(Ordering::SeqCst) {
@@ -122,11 +145,18 @@ impl AudioCaptureService {
         self.level_buffer.lock().unwrap().clear();
         *self.current_level.lock().unwrap() = 0.0;
 
+        // Reset chunked buffer for streaming mode
+        if self.streaming_enabled.load(Ordering::SeqCst) {
+            self.chunked_buffer.lock().unwrap().reset();
+        }
+
         let buffer = self.buffer.clone();
         let level_buffer = self.level_buffer.clone();
         let current_level = self.current_level.clone();
         let is_recording = self.is_recording.clone();
         let channels = self.channels;
+        let chunked_buffer = self.chunked_buffer.clone();
+        let streaming_enabled = self.streaming_enabled.clone();
 
         let err_fn = |err| {
             tracing::error!("Audio stream error: {}", err);
@@ -140,18 +170,30 @@ impl AudioCaptureService {
                         let mut buf = buffer.lock().unwrap();
                         let mut lvl_buf = level_buffer.lock().unwrap();
 
-                        // Convert stereo to mono if needed
-                        if channels == 2 {
-                            for chunk in data.chunks(2) {
-                                if chunk.len() == 2 {
-                                    let sample = (chunk[0] + chunk[1]) / 2.0;
-                                    buf.push(sample);
-                                    lvl_buf.push(sample);
-                                }
-                            }
+                        // Collect mono samples
+                        let mono_samples: Vec<f32> = if channels == 2 {
+                            data.chunks(2)
+                                .filter_map(|chunk| {
+                                    if chunk.len() == 2 {
+                                        Some((chunk[0] + chunk[1]) / 2.0)
+                                    } else {
+                                        None
+                                    }
+                                })
+                                .collect()
                         } else {
-                            buf.extend_from_slice(data);
-                            lvl_buf.extend_from_slice(data);
+                            data.to_vec()
+                        };
+
+                        // Add to main buffer
+                        buf.extend_from_slice(&mono_samples);
+                        lvl_buf.extend_from_slice(&mono_samples);
+
+                        // Add to chunked buffer if streaming is enabled
+                        if streaming_enabled.load(Ordering::SeqCst) {
+                            if let Ok(mut chunk_buf) = chunked_buffer.lock() {
+                                chunk_buf.add_samples(&mono_samples);
+                            }
                         }
 
                         // Calculate level when we have enough samples
@@ -172,6 +214,8 @@ impl AudioCaptureService {
                 let level_buffer = level_buffer.clone();
                 let current_level = current_level.clone();
                 let is_recording = is_recording.clone();
+                let chunked_buffer = chunked_buffer.clone();
+                let streaming_enabled = streaming_enabled.clone();
                 self.device.build_input_stream(
                     &self.config.clone().into(),
                     move |data: &[i16], _: &cpal::InputCallbackInfo| {
@@ -179,22 +223,33 @@ impl AudioCaptureService {
                             let mut buf = buffer.lock().unwrap();
                             let mut lvl_buf = level_buffer.lock().unwrap();
 
-                            // Convert i16 to f32 and stereo to mono if needed
-                            if channels == 2 {
-                                for chunk in data.chunks(2) {
-                                    if chunk.len() == 2 {
-                                        let left = chunk[0] as f32 / i16::MAX as f32;
-                                        let right = chunk[1] as f32 / i16::MAX as f32;
-                                        let sample = (left + right) / 2.0;
-                                        buf.push(sample);
-                                        lvl_buf.push(sample);
-                                    }
-                                }
+                            // Collect mono samples, converting from i16
+                            let mono_samples: Vec<f32> = if channels == 2 {
+                                data.chunks(2)
+                                    .filter_map(|chunk| {
+                                        if chunk.len() == 2 {
+                                            let left = chunk[0] as f32 / i16::MAX as f32;
+                                            let right = chunk[1] as f32 / i16::MAX as f32;
+                                            Some((left + right) / 2.0)
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                    .collect()
                             } else {
-                                for s in data {
-                                    let sample = *s as f32 / i16::MAX as f32;
-                                    buf.push(sample);
-                                    lvl_buf.push(sample);
+                                data.iter()
+                                    .map(|s| *s as f32 / i16::MAX as f32)
+                                    .collect()
+                            };
+
+                            // Add to main buffer
+                            buf.extend_from_slice(&mono_samples);
+                            lvl_buf.extend_from_slice(&mono_samples);
+
+                            // Add to chunked buffer if streaming is enabled
+                            if streaming_enabled.load(Ordering::SeqCst) {
+                                if let Ok(mut chunk_buf) = chunked_buffer.lock() {
+                                    chunk_buf.add_samples(&mono_samples);
                                 }
                             }
 
@@ -281,6 +336,67 @@ impl AudioCaptureService {
     /// Get the current audio level (0.0-1.0)
     pub fn get_current_level(&self) -> f32 {
         *self.current_level.lock().unwrap()
+    }
+
+    /// Get pending audio chunks for streaming transcription
+    ///
+    /// Returns all chunks that haven't been processed yet.
+    /// Only available when streaming mode is enabled.
+    pub fn get_pending_chunks(&self) -> Vec<AudioChunk> {
+        if !self.streaming_enabled.load(Ordering::SeqCst) {
+            return Vec::new();
+        }
+        self.chunked_buffer.lock().unwrap().get_pending_chunks()
+    }
+
+    /// Take the next pending chunk without waiting
+    ///
+    /// Returns None if no chunks are ready or streaming is disabled.
+    pub fn take_next_chunk(&self) -> Option<AudioChunk> {
+        if !self.streaming_enabled.load(Ordering::SeqCst) {
+            return None;
+        }
+        self.chunked_buffer.lock().unwrap().take_next_chunk()
+    }
+
+    /// Check if there are pending chunks ready for processing
+    pub fn has_pending_chunks(&self) -> bool {
+        if !self.streaming_enabled.load(Ordering::SeqCst) {
+            return false;
+        }
+        self.chunked_buffer.lock().unwrap().has_pending_chunks()
+    }
+
+    /// Get number of pending chunks
+    pub fn pending_chunk_count(&self) -> usize {
+        if !self.streaming_enabled.load(Ordering::SeqCst) {
+            return 0;
+        }
+        self.chunked_buffer.lock().unwrap().pending_chunk_count()
+    }
+
+    /// Flush remaining audio as a final chunk (call at end of recording)
+    pub fn flush_remaining_chunk(&self) -> Option<AudioChunk> {
+        if !self.streaming_enabled.load(Ordering::SeqCst) {
+            return None;
+        }
+        self.chunked_buffer.lock().unwrap().flush_remaining()
+    }
+
+    /// Get the full audio buffer from chunked storage (for final reconciliation)
+    pub fn get_full_chunked_buffer(&self) -> Vec<f32> {
+        if !self.streaming_enabled.load(Ordering::SeqCst) {
+            return Vec::new();
+        }
+        self.chunked_buffer.lock().unwrap().get_full_buffer().to_vec()
+    }
+
+    /// Get total duration recorded in streaming mode
+    pub fn streaming_duration_secs(&self) -> f32 {
+        if !self.streaming_enabled.load(Ordering::SeqCst) {
+            return 0.0;
+        }
+        self.chunked_buffer.lock().unwrap().total_duration_secs()
     }
 }
 
