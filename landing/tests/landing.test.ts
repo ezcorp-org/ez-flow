@@ -232,8 +232,8 @@ describe('Build Artifacts', () => {
     expect(await file.exists()).toBe(true);
   });
 
-  test('server.ts should exist', async () => {
-    const file = Bun.file('./server.ts');
+  test('vite.config.ts should exist', async () => {
+    const file = Bun.file('./vite.config.ts');
     expect(await file.exists()).toBe(true);
   });
 
