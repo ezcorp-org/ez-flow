@@ -289,7 +289,7 @@ test.describe('Landing Page', () => {
 
     test('should display footer links', async ({ page }) => {
       const footer = page.locator('footer');
-      await expect(footer.locator('a[href*="github.com/ezcorp/ez-flow"]')).toBeVisible();
+      await expect(footer.locator('a[href*="github.com/ezcorp-org/ez-flow"]')).toBeVisible();
       await expect(footer.locator('a[href*="ezcorp.org"]')).toBeVisible();
       await expect(footer.locator('a:has-text("Report Bug")')).toBeVisible();
     });

@@ -129,7 +129,7 @@
     },
     "updater": {
       "endpoints": [
-        "https://github.com/ezflow/ez-flow/releases/latest/download/latest.json"
+        "https://github.com/ezcorp-org/ez-flow/releases/latest/download/latest.json"
       ],
       "pubkey": "",
       "windows": {

@@ -80,7 +80,7 @@
       <a href="#how-it-works" class="text-ez-muted hover:text-ez-text transition-colors link-underline">How it Works</a>
       <a href="#download" class="text-ez-muted hover:text-ez-text transition-colors link-underline">Download</a>
       <a
-        href="https://github.com/ezcorp/ez-flow"
+        href="https://github.com/ezcorp-org/ez-flow"
         target="_blank"
         rel="noopener noreferrer"
         class="text-ez-muted hover:text-ez-text transition-colors"
@@ -140,7 +140,7 @@
         Download for Free
       </a>
       <a
-        href="https://github.com/ezcorp/ez-flow"
+        href="https://github.com/ezcorp-org/ez-flow"
         target="_blank"
         rel="noopener noreferrer"
         class="border border-ez-border hover:border-ez-muted text-ez-text px-8 py-4 rounded-lg text-lg transition-colors"
@@ -319,42 +319,45 @@
         <h3 class="text-xl font-semibold mb-2">Windows</h3>
         <p class="text-ez-muted text-sm mb-6">Windows 10 or later</p>
         <a
-          href="https://github.com/ezcorp/ez-flow/releases/latest/download/ez-flow-windows.exe"
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
           Download .exe
         </a>
+        <p class="text-ez-muted text-xs mt-2">CPU & CUDA versions available</p>
       </div>
 
       <!-- macOS -->
       <div class="bg-ez-hover border border-ez-border rounded-xl p-8 text-center card-hover">
         <div class="text-4xl mb-4">🍎</div>
         <h3 class="text-xl font-semibold mb-2">macOS</h3>
-        <p class="text-ez-muted text-sm mb-6">macOS 12 or later (Intel & Apple Silicon)</p>
+        <p class="text-ez-muted text-sm mb-6">macOS 12+ (Intel & Apple Silicon)</p>
         <a
-          href="https://github.com/ezcorp/ez-flow/releases/latest/download/ez-flow-macos.dmg"
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
           Download .dmg
         </a>
+        <p class="text-ez-muted text-xs mt-2">Metal GPU acceleration on Apple Silicon</p>
       </div>
 
       <!-- Linux -->
       <div class="bg-ez-hover border border-ez-border rounded-xl p-8 text-center card-hover">
         <div class="text-4xl mb-4">🐧</div>
         <h3 class="text-xl font-semibold mb-2">Linux</h3>
-        <p class="text-ez-muted text-sm mb-6">AppImage, .deb, .rpm available</p>
+        <p class="text-ez-muted text-sm mb-6">Ubuntu, Fedora, and more</p>
         <a
-          href="https://github.com/ezcorp/ez-flow/releases/latest"
+          href="https://github.com/ezcorp-org/ez-flow/releases/latest"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
-          View Releases
+          Download
         </a>
+        <p class="text-ez-muted text-xs mt-2">.deb, .rpm, AppImage available</p>
       </div>
     </div>
 
     <p class="text-center text-ez-muted text-sm mt-8">
-      v0.1.0 &middot; <a href="https://github.com/ezcorp/ez-flow/releases" class="text-ez-yellow hover:underline">Release Notes</a>
+      v0.1.0 &middot; <a href="https://github.com/ezcorp-org/ez-flow/releases" class="text-ez-yellow hover:underline">Release Notes</a>
     </p>
   </div>
 </section>
@@ -396,10 +399,10 @@
         <a href="https://discord.ezcorp.org" target="_blank" rel="noopener noreferrer" class="hover:text-ez-purple transition-colors">
           Discord
         </a>
-        <a href="https://github.com/ezcorp/ez-flow" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
+        <a href="https://github.com/ezcorp-org/ez-flow" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
           GitHub
         </a>
-        <a href="https://github.com/ezcorp/ez-flow/issues" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
+        <a href="https://github.com/ezcorp-org/ez-flow/issues" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
           Report Bug
         </a>
       </div>
