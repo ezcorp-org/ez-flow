@@ -92,10 +92,8 @@ pub fn setup_tray(app: &AppHandle<tauri::Wry>) -> Result<(), Box<dyn std::error:
         ],
     )?;
 
-    // Load tray icon from embedded bytes (path relative to Cargo.toml)
-    let icon_bytes = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/icons/32x32.png"));
-    let icon = tauri::image::Image::from_bytes(icon_bytes)
-        .map_err(|e| format!("Failed to load tray icon: {}", e))?;
+    // Load tray icon (path relative to Cargo.toml)
+    let icon = tauri::include_image!("icons/32x32.png");
 
     // Build tray icon
     let _tray = TrayIconBuilder::new()
