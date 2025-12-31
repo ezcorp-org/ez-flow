@@ -15,6 +15,7 @@ use crate::commands::TranscriptionState;
 use crate::models::HistoryEntry;
 use crate::services::audio::processing::resample_for_whisper;
 use crate::services::storage::{DatabaseState, SettingsState};
+use crate::services::tray::update_tray_for_recording;
 use chrono::Utc;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
@@ -121,6 +122,8 @@ pub fn register_hotkey<R: Runtime>(
                     match audio_state.send_command(AudioCommand::Start) {
                         Ok(AudioResponse::Ok) => {
                             tracing::info!("Recording started from hotkey");
+                            // Update tray icon and menu
+                            update_tray_for_recording(app, true);
                             // Start emitting audio levels
                             if let Err(e) = audio_state.start_level_emitter(app.clone()) {
                                 tracing::warn!("Failed to start level emitter: {}", e);
@@ -161,6 +164,9 @@ pub fn register_hotkey<R: Runtime>(
 
                     tracing::info!("Hotkey released after {}ms - stopping recording", elapsed);
                     is_recording.store(false, Ordering::SeqCst);
+
+                    // Update tray icon and menu back to normal
+                    update_tray_for_recording(app, false);
 
                     // Stop recording and transcribe
                     let audio_state = app.state::<AudioState>();

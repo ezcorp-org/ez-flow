@@ -153,7 +153,8 @@ fn handle_menu_event(app: &AppHandle<tauri::Wry>, menu_id: &str) {
 }
 
 /// Update tray menu items and icon for recording state
-fn update_menu_for_recording(app: &AppHandle<tauri::Wry>, is_recording: bool) {
+/// This is public so hotkey module can also update tray state
+pub fn update_tray_for_recording(app: &AppHandle<tauri::Wry>, is_recording: bool) {
     // Get menu items from state and update their enabled state
     let menu_state = app.state::<TrayMenuState>();
 
@@ -197,8 +198,8 @@ fn start_recording_from_tray(app: &AppHandle<tauri::Wry>) {
     match audio_state.send_command(AudioCommand::Start) {
         Ok(AudioResponse::Ok) => {
             tracing::info!("Recording started successfully from tray");
-            // Update menu items
-            update_menu_for_recording(app, true);
+            // Update menu items and tray icon
+            update_tray_for_recording(app, true);
 
             // Start emitting audio levels
             if let Err(e) = audio_state.start_level_emitter(app.clone()) {
@@ -232,8 +233,8 @@ fn stop_recording_from_tray(app: &AppHandle<tauri::Wry>) {
     // Stop level emitter
     audio_state.stop_level_emitter();
 
-    // Reset menu state immediately
-    update_menu_for_recording(app, false);
+    // Reset menu state and tray icon immediately
+    update_tray_for_recording(app, false);
 
     // Stop recording
     let buffer = match audio_state.send_command(AudioCommand::Stop) {
