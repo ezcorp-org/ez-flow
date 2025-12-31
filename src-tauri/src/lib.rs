@@ -1,4 +1,4 @@
-use tauri::Manager;
+use tauri::{Listener, Manager};
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 pub mod commands;
@@ -52,6 +52,14 @@ pub fn run() {
             let settings_state = app.state::<services::storage::SettingsState>();
             let saved_hotkey = settings_state.get_hotkey_sync();
             services::hotkey::setup_hotkey_with_key(app.handle(), &hotkey_state, &saved_hotkey);
+
+            // Listen for tray update events from hotkey module
+            let app_handle = app.handle().clone();
+            app.listen("tray://update-recording-state", move |event| {
+                // Payload is JSON boolean string like "true" or "false"
+                let is_recording = event.payload() == "true";
+                services::tray::update_tray_for_recording(&app_handle, is_recording);
+            });
 
             // Show main window on startup for model setup screen
             // The frontend will show the ModelSetupScreen and then the app

@@ -153,7 +153,6 @@ fn handle_menu_event(app: &AppHandle<tauri::Wry>, menu_id: &str) {
 }
 
 /// Update tray menu items and icon for recording state
-/// This is public so hotkey module can also update tray state
 pub fn update_tray_for_recording(app: &AppHandle<tauri::Wry>, is_recording: bool) {
     // Get menu items from state and update their enabled state
     let menu_state = app.state::<TrayMenuState>();
