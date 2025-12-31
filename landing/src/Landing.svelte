@@ -72,8 +72,8 @@
 <nav class="fixed top-0 left-0 right-0 z-50 bg-ez-dark/80 backdrop-blur-md border-b border-ez-border">
   <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
     <a href="/" class="flex items-center gap-2 text-xl font-semibold">
-      <span class="text-ez-yellow">EZ</span>
-      <span>Flow</span>
+      <img src="/logo.svg" alt="EZ Flow" class="w-8 h-8" />
+      <span><span class="text-ez-yellow">EZ</span> Flow</span>
     </a>
     <div class="hidden md:flex items-center gap-8">
       <a href="#features" class="text-ez-muted hover:text-ez-text transition-colors link-underline">Features</a>
@@ -365,10 +365,12 @@
 <footer class="py-12 bg-ez-hover border-t border-ez-border">
   <div class="max-w-6xl mx-auto px-6">
     <div class="flex flex-col md:flex-row justify-between items-center gap-6">
-      <div class="flex items-center gap-2">
-        <span class="text-ez-yellow font-semibold text-xl">EZ</span>
-        <span class="font-semibold text-xl">Flow</span>
-        <span class="text-ez-muted text-sm ml-2">by EZCorp</span>
+      <div class="flex items-center gap-3">
+        <img src="/logo.svg" alt="EZ Flow" class="w-10 h-10" />
+        <div>
+          <span class="font-semibold text-xl"><span class="text-ez-yellow">EZ</span> Flow</span>
+          <span class="text-ez-muted text-sm ml-2">by EZCorp</span>
+        </div>
       </div>
 
       <div class="flex items-center gap-6 text-ez-muted">
