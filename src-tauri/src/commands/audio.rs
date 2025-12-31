@@ -19,7 +19,7 @@ use chrono::Utc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tauri::{AppHandle, Runtime, State};
+use tauri::{AppHandle, Emitter, Runtime, State};
 
 /// Commands for the audio thread
 pub enum AudioCommand {
@@ -314,9 +314,12 @@ pub async fn start_recording(app: AppHandle, state: State<'_, AudioState>) -> Re
             tracing::info!("Recording started successfully");
 
             // Start emitting audio levels
-            if let Err(e) = state.start_level_emitter(app) {
+            if let Err(e) = state.start_level_emitter(app.clone()) {
                 tracing::warn!("Failed to start level emitter: {}", e);
             }
+
+            // Emit event to update tray icon and menu
+            let _ = app.emit("tray://update-recording-state", true);
 
             Ok(())
         }
@@ -327,11 +330,17 @@ pub async fn start_recording(app: AppHandle, state: State<'_, AudioState>) -> Re
 
 /// Stop recording and return the result
 #[tauri::command]
-pub async fn stop_recording(state: State<'_, AudioState>) -> Result<RecordingResult, String> {
+pub async fn stop_recording(
+    app: AppHandle,
+    state: State<'_, AudioState>,
+) -> Result<RecordingResult, String> {
     tracing::info!("Stopping audio recording");
 
     // Stop level emitter
     state.stop_level_emitter();
+
+    // Emit event to update tray icon and menu
+    let _ = app.emit("tray://update-recording-state", false);
 
     match state.send_command(AudioCommand::Stop)? {
         AudioResponse::Buffer(Ok(buffer)) => {
@@ -375,6 +384,7 @@ pub async fn get_recording_duration(state: State<'_, AudioState>) -> Result<f32,
 /// Stop recording and immediately transcribe the audio
 #[tauri::command]
 pub async fn stop_recording_and_transcribe(
+    app: AppHandle,
     audio_state: State<'_, AudioState>,
     transcription_state: State<'_, TranscriptionState>,
     settings_state: State<'_, SettingsState>,
@@ -386,6 +396,9 @@ pub async fn stop_recording_and_transcribe(
 
     // Stop level emitter
     audio_state.stop_level_emitter();
+
+    // Emit event to update tray icon and menu
+    let _ = app.emit("tray://update-recording-state", false);
 
     // Stop recording
     let buffer = match audio_state.send_command(AudioCommand::Stop)? {

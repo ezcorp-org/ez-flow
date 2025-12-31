@@ -614,7 +614,10 @@ mod tests {
     fn test_prepare_fts_query() {
         assert_eq!(prepare_fts_query("hello"), "\"hello\"*");
         assert_eq!(prepare_fts_query("hello world"), "\"hello\"* \"world\"*");
-        assert_eq!(prepare_fts_query("  hello   world  "), "\"hello\"* \"world\"*");
+        assert_eq!(
+            prepare_fts_query("  hello   world  "),
+            "\"hello\"* \"world\"*"
+        );
         // Quotes are escaped
         assert_eq!(prepare_fts_query("he\"llo"), "\"he\"\"llo\"*");
     }
@@ -662,7 +665,11 @@ mod tests {
         let start = std::time::Instant::now();
         let results = db.search_history("special mark").await.unwrap();
         let like_duration = start.elapsed();
-        assert_eq!(results.len(), 100, "Should find 100 entries with 'special marker'");
+        assert_eq!(
+            results.len(),
+            100,
+            "Should find 100 entries with 'special marker'"
+        );
 
         // Assert all searches complete in under 50ms
         assert!(
