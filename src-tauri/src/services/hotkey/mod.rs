@@ -243,6 +243,9 @@ pub fn register_hotkey<R: Runtime>(
                                             "Failed to save transcription to history: {}",
                                             e
                                         );
+                                    } else {
+                                        // Emit event to refresh history UI
+                                        let _ = app_handle.emit("history://new-entry", ());
                                     }
                                 }
 

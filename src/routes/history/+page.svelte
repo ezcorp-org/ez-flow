@@ -27,14 +27,20 @@
 	onMount(async () => {
 		await loadHistory();
 
-		// Listen for new transcriptions from hotkey
+		// Listen for new history entries (covers all transcription sources)
+		unlisteners.push(
+			await listen('history://new-entry', async () => {
+				await loadHistory();
+			})
+		);
+
+		// Also listen for legacy events for backwards compatibility
 		unlisteners.push(
 			await listen('hotkey://transcription-complete', async () => {
 				await loadHistory();
 			})
 		);
 
-		// Listen for new transcriptions from tray
 		unlisteners.push(
 			await listen('tray://transcription-complete', async () => {
 				await loadHistory();

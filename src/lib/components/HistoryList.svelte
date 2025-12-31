@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { invoke } from '@tauri-apps/api/core';
+	import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 	import { writeText } from '@tauri-apps/plugin-clipboard-manager';
 
 	interface HistoryEntry {
@@ -23,8 +24,21 @@
 	let loading = $state(true);
 	let copiedId = $state<number | null>(null);
 
+	const unlisteners: UnlistenFn[] = [];
+
 	onMount(async () => {
 		await loadHistory();
+
+		// Listen for new history entries
+		unlisteners.push(
+			await listen('history://new-entry', async () => {
+				await loadHistory();
+			})
+		);
+	});
+
+	onDestroy(() => {
+		unlisteners.forEach((unlisten) => unlisten());
 	});
 
 	export async function refresh() {

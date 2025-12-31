@@ -457,6 +457,8 @@ pub async fn stop_recording_and_transcribe(
             tracing::error!("Failed to save transcription to history: {}", e);
         } else {
             tracing::debug!("Saved transcription to history");
+            // Emit event to refresh history UI
+            let _ = app.emit("history://new-entry", ());
         }
     }
 
