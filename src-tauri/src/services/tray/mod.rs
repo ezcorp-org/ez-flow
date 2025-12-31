@@ -92,11 +92,10 @@ pub fn setup_tray(app: &AppHandle<tauri::Wry>) -> Result<(), Box<dyn std::error:
         ],
     )?;
 
-    // Get icon from app resources
-    let icon = app
-        .default_window_icon()
-        .cloned()
-        .ok_or("No default icon found")?;
+    // Load tray icon from embedded bytes
+    let icon_bytes = include_bytes!("../../icons/32x32.png");
+    let icon = tauri::image::Image::from_bytes(icon_bytes)
+        .map_err(|e| format!("Failed to load tray icon: {}", e))?;
 
     // Build tray icon
     let _tray = TrayIconBuilder::new()
