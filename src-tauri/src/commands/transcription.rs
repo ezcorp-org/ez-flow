@@ -7,7 +7,7 @@ use crate::services::transcription::{
     TranscriptionResult,
 };
 use std::path::Path;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::{AppHandle, Emitter, State};
 
 /// State wrapper for the transcription engine
 pub struct TranscriptionState {

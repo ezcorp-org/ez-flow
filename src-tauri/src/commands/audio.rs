@@ -7,7 +7,7 @@
 
 use crate::commands::TranscriptionState;
 use crate::models::HistoryEntry;
-use crate::services::audio::processing::{calculate_audio_level, AudioBuffer};
+use crate::services::audio::processing::AudioBuffer;
 use crate::services::audio::{
     capture::save_to_temp_wav, processing::resample_for_whisper, AudioCaptureService, AudioDevice,
     AudioError, PermissionStatus, RecordingResult,

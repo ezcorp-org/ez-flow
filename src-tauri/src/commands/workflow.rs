@@ -94,6 +94,7 @@ pub async fn push_to_talk_complete(
     // Stop recording and transcribe (with auto-load fallback)
     let transcribe_start = Instant::now();
     let transcription_result = match crate::commands::audio::stop_recording_and_transcribe(
+        app.clone(),
         audio_state.clone(),
         transcription_state.clone(),
         settings_state.clone(),

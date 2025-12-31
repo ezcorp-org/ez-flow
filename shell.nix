@@ -51,6 +51,9 @@ pkgs.mkShell {
     llvmPackages.clang
     cmake
 
+    # OpenSSL for tauri-plugin-updater
+    openssl
+
     # Node/Bun
     bun
     nodejs
@@ -70,6 +73,8 @@ pkgs.mkShell {
       pkgs.dbus
       pkgs.libayatana-appindicator
       pkgs.alsa-lib
+      pkgs.openssl
+      pkgs.stdenv.cc.cc.lib
     ]}:$LD_LIBRARY_PATH"
   '';
 }
