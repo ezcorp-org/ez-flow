@@ -1,6 +1,20 @@
 <script lang="ts">
   import { onMount } from 'svelte';
 
+  // Lucide icons - direct imports for tree-shaking
+  import ShieldCheck from 'lucide-svelte/icons/shield-check';
+  import Zap from 'lucide-svelte/icons/zap';
+  import Target from 'lucide-svelte/icons/target';
+  import Globe from 'lucide-svelte/icons/globe';
+  import Gift from 'lucide-svelte/icons/gift';
+  import Monitor from 'lucide-svelte/icons/monitor';
+  import Lock from 'lucide-svelte/icons/lock';
+  import Github from 'lucide-svelte/icons/github';
+  import MessageCircle from 'lucide-svelte/icons/message-circle';
+  import Download from 'lucide-svelte/icons/download';
+  import Apple from 'lucide-svelte/icons/apple';
+  import Terminal from 'lucide-svelte/icons/terminal';
+
   let currentYear = new Date().getFullYear();
   let isMac = false;
 
@@ -10,32 +24,32 @@
 
   const features = [
     {
-      icon: '🔒',
+      icon: ShieldCheck,
       title: '100% Local Processing',
       description: 'Your audio never leaves your device. Zero servers. Zero tracking. Zero BS.',
     },
     {
-      icon: '⚡',
+      icon: Zap,
       title: 'Lightning Fast',
       description: 'GPU-accelerated transcription in under 3 seconds. NVIDIA, Apple Silicon, or CPU fallback.',
     },
     {
-      icon: '🎯',
+      icon: Target,
       title: 'Push-to-Talk',
       description: 'Hold your hotkey, speak, release. Text appears at your cursor. That simple.',
     },
     {
-      icon: '🌍',
+      icon: Globe,
       title: '99+ Languages',
       description: 'Powered by OpenAI Whisper models. Auto-detect language or pick your own.',
     },
     {
-      icon: '💰',
+      icon: Gift,
       title: 'Free Forever',
       description: 'Open source under MIT license. No subscriptions. No "premium tiers." Just works.',
     },
     {
-      icon: '🖥️',
+      icon: Monitor,
       title: 'Cross-Platform',
       description: 'Windows, macOS, and Linux. Same great experience everywhere.',
     },
@@ -83,16 +97,18 @@
         href="https://github.com/ezcorp-org/ez-flow"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-ez-muted hover:text-ez-text transition-colors"
+        class="text-ez-muted hover:text-ez-text transition-colors flex items-center gap-1.5"
       >
+        <Github class="w-4 h-4" />
         GitHub
       </a>
       <a
         href="https://discord.ezcorp.org"
         target="_blank"
         rel="noopener noreferrer"
-        class="text-ez-muted hover:text-ez-purple transition-colors"
+        class="text-ez-muted hover:text-ez-purple transition-colors flex items-center gap-1.5"
       >
+        <MessageCircle class="w-4 h-4" />
         Discord
       </a>
       <a
@@ -143,8 +159,9 @@
         href="https://github.com/ezcorp-org/ez-flow"
         target="_blank"
         rel="noopener noreferrer"
-        class="border border-ez-border hover:border-ez-muted text-ez-text px-8 py-4 rounded-lg text-lg transition-colors"
+        class="border border-ez-border hover:border-ez-muted text-ez-text px-8 py-4 rounded-lg text-lg transition-colors flex items-center gap-2"
       >
+        <Github class="w-5 h-5" />
         View on GitHub
       </a>
     </div>
@@ -193,7 +210,9 @@
     <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
       {#each features as feature}
         <div class="bg-ez-hover border border-ez-border rounded-xl p-6 card-hover">
-          <span class="text-3xl mb-4 block">{feature.icon}</span>
+          <div class="w-12 h-12 bg-ez-yellow/10 rounded-lg flex items-center justify-center mb-4">
+            <svelte:component this={feature.icon} class="w-6 h-6 text-ez-yellow" />
+          </div>
           <h3 class="text-xl font-semibold mb-2">{feature.title}</h3>
           <p class="text-ez-muted">{feature.description}</p>
         </div>
@@ -281,7 +300,9 @@
 <!-- Privacy Section -->
 <section class="py-24 bg-ez-hover border-t border-ez-border">
   <div class="max-w-4xl mx-auto px-6 text-center">
-    <span class="text-5xl mb-6 block">🔐</span>
+    <div class="w-20 h-20 bg-ez-yellow/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
+      <Lock class="w-10 h-10 text-ez-yellow" />
+    </div>
     <h2 class="text-3xl md:text-4xl font-bold mb-6">
       Your voice. Your device. Period.
     </h2>
@@ -315,7 +336,9 @@
     <div class="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
       <!-- Windows -->
       <div class="bg-ez-hover border border-ez-border rounded-xl p-8 text-center card-hover">
-        <div class="text-4xl mb-4">🪟</div>
+        <div class="w-16 h-16 bg-ez-yellow/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <Monitor class="w-8 h-8 text-ez-yellow" />
+        </div>
         <h3 class="text-xl font-semibold mb-2">Windows</h3>
         <p class="text-ez-muted text-sm mb-6">Windows 10 or later</p>
         <a
@@ -334,7 +357,9 @@
 
       <!-- macOS -->
       <div class="bg-ez-hover border border-ez-border rounded-xl p-8 text-center card-hover">
-        <div class="text-4xl mb-4">🍎</div>
+        <div class="w-16 h-16 bg-ez-yellow/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <Apple class="w-8 h-8 text-ez-yellow" />
+        </div>
         <h3 class="text-xl font-semibold mb-2">macOS</h3>
         <p class="text-ez-muted text-sm mb-4">macOS 12 or later</p>
         <a
@@ -353,7 +378,9 @@
 
       <!-- Linux -->
       <div class="bg-ez-hover border border-ez-border rounded-xl p-8 text-center card-hover">
-        <div class="text-4xl mb-4">🐧</div>
+        <div class="w-16 h-16 bg-ez-yellow/10 rounded-xl flex items-center justify-center mx-auto mb-4">
+          <Terminal class="w-8 h-8 text-ez-yellow" />
+        </div>
         <h3 class="text-xl font-semibold mb-2">Linux</h3>
         <p class="text-ez-muted text-sm mb-6">Ubuntu, Fedora, Arch, etc.</p>
         <a
@@ -411,10 +438,12 @@
         <a href="https://ezcorp.org" target="_blank" rel="noopener noreferrer" class="text-ez-yellow hover:text-ez-yellow-hover transition-colors font-medium">
           EZCorp.org
         </a>
-        <a href="https://discord.ezcorp.org" target="_blank" rel="noopener noreferrer" class="hover:text-ez-purple transition-colors">
+        <a href="https://discord.ezcorp.org" target="_blank" rel="noopener noreferrer" class="hover:text-ez-purple transition-colors flex items-center gap-1.5">
+          <MessageCircle class="w-4 h-4" />
           Discord
         </a>
-        <a href="https://github.com/ezcorp-org/ez-flow" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
+        <a href="https://github.com/ezcorp-org/ez-flow" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors flex items-center gap-1.5">
+          <Github class="w-4 h-4" />
           GitHub
         </a>
         <a href="https://github.com/ezcorp-org/ez-flow/issues" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">

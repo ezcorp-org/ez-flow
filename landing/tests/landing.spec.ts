@@ -130,14 +130,10 @@ test.describe('Landing Page', () => {
     });
 
     test('feature cards should have icons', async ({ page }) => {
-      // Each card should have an emoji icon
+      // Each card should have a Lucide SVG icon
       const featureSection = page.locator('#features');
-      await expect(featureSection.locator('text=🔒')).toBeVisible();
-      await expect(featureSection.locator('text=⚡')).toBeVisible();
-      await expect(featureSection.locator('text=🎯')).toBeVisible();
-      await expect(featureSection.locator('text=🌍')).toBeVisible();
-      await expect(featureSection.locator('text=💰')).toBeVisible();
-      await expect(featureSection.locator('text=🖥️')).toBeVisible();
+      const iconContainers = featureSection.locator('.card-hover svg');
+      await expect(iconContainers).toHaveCount(6);
     });
   });
 
@@ -209,7 +205,9 @@ test.describe('Landing Page', () => {
     });
 
     test('should display lock icon', async ({ page }) => {
-      const lockIcon = page.locator('text=🔐');
+      // Privacy section has a Lucide Lock SVG icon
+      const privacySection = page.locator('h2:has-text("Your voice. Your device.")').locator('..');
+      const lockIcon = privacySection.locator('svg');
       await expect(lockIcon).toBeVisible();
     });
   });
