@@ -3,9 +3,10 @@
 //! Manages real-time streaming transcription during recording,
 //! emitting partial results as audio chunks become available.
 
-use crate::models::StreamingMode;
+use crate::models::settings::StreamingMode;
 use crate::services::audio::AudioChunk;
-use crate::services::transcription::{ChunkTranscriptionResult, SharedWhisperEngine, TranscriptionError};
+use crate::services::transcription::{ChunkTranscriptionResult, TranscriptionError};
+use crate::services::transcription::engine::SharedWhisperEngine;
 use serde::Serialize;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;

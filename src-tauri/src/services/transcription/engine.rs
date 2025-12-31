@@ -367,7 +367,7 @@ impl WhisperEngine {
 /// Returns a value between 0.0 and 1.0 indicating transcription quality.
 fn estimate_chunk_confidence(text: &str, duration_secs: f32, token_count: i32) -> f32 {
     // Base confidence
-    let mut confidence = 0.7;
+    let mut confidence: f32 = 0.7;
 
     // Adjust based on text length relative to duration
     // Typical speech is ~2-3 words per second, ~5-6 chars per word

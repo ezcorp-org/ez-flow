@@ -3,8 +3,8 @@
 //! Handles microphone input and buffering for transcription.
 
 use super::{
-    chunking::{AudioChunk, ChunkConfig, ChunkedAudioBuffer},
-    processing::{calculate_audio_level, AudioBuffer, WHISPER_SAMPLE_RATE},
+    chunking::{AudioChunk, ChunkedAudioBuffer},
+    processing::{calculate_audio_level, AudioBuffer},
     AudioDevice, AudioError, RecordingResult,
 };
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
