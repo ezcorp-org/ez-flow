@@ -319,7 +319,7 @@
         <h3 class="text-xl font-semibold mb-2">Windows</h3>
         <p class="text-ez-muted text-sm mb-6">Windows 10 or later</p>
         <a
-          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_x64-setup.exe"
+          href="https://github.com/ezcorp-org/ez-flow/releases/download/v0.1.0/EZ.Flow_0.1.0_x64-setup.exe"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
           Download .exe
@@ -338,13 +338,13 @@
         <h3 class="text-xl font-semibold mb-2">macOS</h3>
         <p class="text-ez-muted text-sm mb-4">macOS 12 or later</p>
         <a
-          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_aarch64.dmg"
+          href="https://github.com/ezcorp-org/ez-flow/releases/download/v0.1.0/EZ.Flow_0.1.0_aarch64.dmg"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
           Apple Silicon
         </a>
         <a
-          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_x64.dmg"
+          href="https://github.com/ezcorp-org/ez-flow/releases/download/v0.1.0/EZ.Flow_0.1.0_x64.dmg"
           class="block border border-ez-border hover:border-ez-muted text-ez-text font-medium px-6 py-2 rounded-lg transition-colors mt-2"
         >
           Intel Mac
@@ -357,7 +357,7 @@
         <h3 class="text-xl font-semibold mb-2">Linux</h3>
         <p class="text-ez-muted text-sm mb-6">Ubuntu, Fedora, Arch, etc.</p>
         <a
-          href="https://github.com/ezcorp-org/ez-flow/releases/latest/download/EZ.Flow_0.1.0_amd64.AppImage"
+          href="https://github.com/ezcorp-org/ez-flow/releases/download/v0.1.0/EZ.Flow_0.1.0_amd64.AppImage"
           class="block bg-ez-yellow hover:bg-ez-yellow-hover text-ez-dark font-semibold px-6 py-3 rounded-lg transition-colors btn-press"
         >
           Download AppImage
