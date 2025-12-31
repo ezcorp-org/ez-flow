@@ -75,7 +75,7 @@
       <img src="/logo.svg" alt="EZ Flow" class="w-8 h-8" />
       <span><span class="text-ez-yellow">EZ</span> Flow</span>
     </a>
-    <div class="hidden md:flex items-center gap-8">
+    <div class="hidden md:flex items-center gap-6">
       <a href="#features" class="text-ez-muted hover:text-ez-text transition-colors link-underline">Features</a>
       <a href="#how-it-works" class="text-ez-muted hover:text-ez-text transition-colors link-underline">How it Works</a>
       <a href="#download" class="text-ez-muted hover:text-ez-text transition-colors link-underline">Download</a>
@@ -86,6 +86,22 @@
         class="text-ez-muted hover:text-ez-text transition-colors"
       >
         GitHub
+      </a>
+      <a
+        href="https://discord.ezcorp.org"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-ez-muted hover:text-ez-purple transition-colors"
+      >
+        Discord
+      </a>
+      <a
+        href="https://ezcorp.org"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-ez-yellow hover:text-ez-yellow-hover transition-colors font-medium"
+      >
+        EZCorp
       </a>
     </div>
     <a
@@ -369,16 +385,19 @@
         <img src="/logo.svg" alt="EZ Flow" class="w-10 h-10" />
         <div>
           <span class="font-semibold text-xl"><span class="text-ez-yellow">EZ</span> Flow</span>
-          <span class="text-ez-muted text-sm ml-2">by EZCorp</span>
+          <a href="https://ezcorp.org" target="_blank" rel="noopener noreferrer" class="text-ez-muted hover:text-ez-yellow text-sm ml-2 transition-colors">by EZCorp</a>
         </div>
       </div>
 
-      <div class="flex items-center gap-6 text-ez-muted">
+      <div class="flex flex-wrap items-center justify-center gap-6 text-ez-muted">
+        <a href="https://ezcorp.org" target="_blank" rel="noopener noreferrer" class="text-ez-yellow hover:text-ez-yellow-hover transition-colors font-medium">
+          EZCorp.org
+        </a>
+        <a href="https://discord.ezcorp.org" target="_blank" rel="noopener noreferrer" class="hover:text-ez-purple transition-colors">
+          Discord
+        </a>
         <a href="https://github.com/ezcorp/ez-flow" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
           GitHub
-        </a>
-        <a href="https://ezcorp.org" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
-          EZCorp
         </a>
         <a href="https://github.com/ezcorp/ez-flow/issues" target="_blank" rel="noopener noreferrer" class="hover:text-ez-text transition-colors">
           Report Bug
