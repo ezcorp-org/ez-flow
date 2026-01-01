@@ -75,6 +75,17 @@
 		}
 	}
 
+	/**
+	 * Handle close button click
+	 */
+	async function handleClose() {
+		cancelHide();
+		const appWindow = getCurrentWindow();
+		await appWindow.hide();
+		text = '';
+		previewState = 'preview';
+	}
+
 	onMount(async () => {
 		const appWindow = getCurrentWindow();
 		await loadSettings();
@@ -224,7 +235,7 @@
 </svelte:head>
 
 <div class="preview-container">
-	<TranscriptionPreview {text} state={previewState} {audioLevel} {showVisualizer} />
+	<TranscriptionPreview {text} state={previewState} {audioLevel} {showVisualizer} onClose={handleClose} />
 </div>
 
 <style>

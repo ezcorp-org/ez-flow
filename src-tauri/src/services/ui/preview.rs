@@ -54,7 +54,7 @@ pub fn get_or_create_preview<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWi
     tracing::info!("Creating preview window");
     let window = WebviewWindowBuilder::new(app, "preview", WebviewUrl::App("/preview".into()))
         .title("Transcription Preview")
-        .inner_size(400.0, 200.0)
+        .inner_size(480.0, 240.0)
         .resizable(false)
         .decorations(false)
         .always_on_top(true)
@@ -82,8 +82,8 @@ pub fn show_preview_centered<R: Runtime>(app: &AppHandle<R>) -> Result<(), Strin
     if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
         let screen_size = monitor.size();
         let scale = monitor.scale_factor();
-        let window_width = 400.0 * scale;
-        let window_height = 200.0 * scale;
+        let window_width = 480.0 * scale;
+        let window_height = 240.0 * scale;
 
         let x = (screen_size.width as f64 - window_width) / 2.0;
         let y = (screen_size.height as f64 - window_height) / 2.0;
@@ -125,8 +125,8 @@ pub fn position_preview<R: Runtime>(
             if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
                 let size = monitor.size();
                 let scale = monitor.scale_factor();
-                let window_width = 360.0 * scale;
-                let window_height = 180.0 * scale;
+                let window_width = 480.0 * scale;
+                let window_height = 240.0 * scale;
                 let screen_width = size.width as f64;
                 let screen_height = size.height as f64;
 
@@ -161,7 +161,7 @@ fn position_preview_top_right<R: Runtime>(window: &WebviewWindow<R>) -> Result<(
     if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
         let size = monitor.size();
         let scale = monitor.scale_factor();
-        let window_width = 380.0 * scale; // Slightly larger to account for padding
+        let window_width = 500.0 * scale; // Slightly larger to account for padding
         let padding = 20.0 * scale;
 
         window

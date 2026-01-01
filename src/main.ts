@@ -33,6 +33,9 @@ async function init() {
   } else if (path === '/onboarding' || path === '/onboarding/') {
     const { default: Onboarding } = await import('./routes/onboarding/+page.svelte');
     mount(Onboarding, { target });
+  } else if (path === '/preview' || path === '/preview/') {
+    const { default: Preview } = await import('./routes/preview/+page.svelte');
+    mount(Preview, { target });
   } else {
     // Default: main app
     const { default: App } = await import('./App.svelte');

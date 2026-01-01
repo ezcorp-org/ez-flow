@@ -7,15 +7,17 @@
 
 <script lang="ts">
 	import AudioVisualizer from './AudioVisualizer.svelte';
+	import { X } from '@lucide/svelte';
 
 	interface Props {
 		text?: string;
 		state?: PreviewState;
 		audioLevel?: number;
 		showVisualizer?: boolean;
+		onClose?: () => void;
 	}
 
-	let { text = '', state = 'preview', audioLevel = 0, showVisualizer = true }: Props = $props();
+	let { text = '', state = 'preview', audioLevel = 0, showVisualizer = true, onClose }: Props = $props();
 
 	/**
 	 * Get state indicator color and animation
@@ -75,9 +77,21 @@
 			></div>
 			<span class="text-xs text-neutral-400" data-testid="state-label">{stateLabel}</span>
 		</div>
-		{#if showVisualizer && (state === 'preview' || state === 'streaming')}
-			<AudioVisualizer level={audioLevel} />
-		{/if}
+		<div class="flex items-center gap-2">
+			{#if showVisualizer && (state === 'preview' || state === 'streaming')}
+				<AudioVisualizer level={audioLevel} />
+			{/if}
+			{#if onClose}
+				<button
+					onclick={onClose}
+					class="close-button p-1 rounded hover:bg-neutral-700/50 text-neutral-400 hover:text-neutral-200 transition-colors"
+					data-testid="close-button"
+					aria-label="Close preview"
+				>
+					<X size={16} />
+				</button>
+			{/if}
+		</div>
 	</div>
 
 	<!-- Transcribed text -->
@@ -111,14 +125,19 @@
 	.transcription-preview {
 		-webkit-app-region: drag;
 		user-select: none;
-		max-height: 180px;
-		min-height: 100px;
+		max-height: 220px;
+		min-height: 120px;
+		width: 100%;
 	}
 
 	.text-container {
-		max-height: 100px;
+		max-height: 140px;
 		-webkit-app-region: no-drag;
 		user-select: text;
+	}
+
+	.close-button {
+		-webkit-app-region: no-drag;
 	}
 
 	.text-container::-webkit-scrollbar {
