@@ -4,6 +4,7 @@
 
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicU32, Ordering};
+use rubato::{FftFixedIn, Resampler};
 
 /// Default chunk size in seconds
 pub const DEFAULT_CHUNK_SIZE_SECS: f32 = 2.0;
@@ -105,15 +106,14 @@ impl ChunkConfig {
 ///
 /// Maintains both a full audio buffer for final reconciliation and
 /// a queue of chunks for incremental processing.
-#[derive(Debug)]
 pub struct ChunkedAudioBuffer {
     /// Configuration
     config: ChunkConfig,
     /// Ready chunks waiting to be processed
     chunks: VecDeque<AudioChunk>,
-    /// Full audio buffer for final reconciliation
+    /// Full audio buffer for final reconciliation (resampled to 16kHz)
     full_buffer: Vec<f32>,
-    /// Pending samples not yet forming a complete chunk
+    /// Pending samples not yet forming a complete chunk (at input sample rate)
     pending_samples: Vec<f32>,
     /// Current chunk index counter
     chunk_counter: AtomicU32,
@@ -121,11 +121,42 @@ pub struct ChunkedAudioBuffer {
     start_time_ms: u64,
     /// Sample rate of input audio (may need resampling)
     input_sample_rate: u32,
+    /// Chunk size in input samples (scaled from 16kHz)
+    input_chunk_size: usize,
+    /// Resampler for converting to 16kHz
+    resampler: Option<FftFixedIn<f32>>,
 }
 
 impl ChunkedAudioBuffer {
     /// Create a new chunked audio buffer
     pub fn new(config: ChunkConfig, input_sample_rate: u32) -> Self {
+        // Calculate chunk size at input sample rate
+        // config.chunk_size_samples is at 16kHz, scale to input rate
+        let ratio = input_sample_rate as f32 / WHISPER_SAMPLE_RATE as f32;
+        let input_chunk_size = (config.chunk_size_samples as f32 * ratio) as usize;
+
+        // Create resampler if needed
+        let resampler = if input_sample_rate != WHISPER_SAMPLE_RATE {
+            // Use FFT-based resampler for efficiency
+            // chunk_size must be a power of 2 for FFT, so find nearest
+            let fft_size = input_chunk_size.next_power_of_two().min(8192);
+            match FftFixedIn::<f32>::new(
+                input_sample_rate as usize,
+                WHISPER_SAMPLE_RATE as usize,
+                fft_size,
+                2, // sub_chunks
+                1, // channels
+            ) {
+                Ok(r) => Some(r),
+                Err(e) => {
+                    tracing::error!("Failed to create resampler: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         Self {
             config,
             chunks: VecDeque::new(),
@@ -137,6 +168,8 @@ impl ChunkedAudioBuffer {
                 .map(|d| d.as_millis() as u64)
                 .unwrap_or(0),
             input_sample_rate,
+            input_chunk_size,
+            resampler,
         }
     }
 
@@ -155,6 +188,11 @@ impl ChunkedAudioBuffer {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
+
+        // Reset resampler state
+        if let Some(ref mut resampler) = self.resampler {
+            resampler.reset();
+        }
     }
 
     /// Add samples to the buffer
@@ -162,32 +200,53 @@ impl ChunkedAudioBuffer {
     /// Samples are added to both the full buffer and pending chunk buffer.
     /// When enough samples accumulate, a new chunk is created.
     pub fn add_samples(&mut self, samples: &[f32]) {
-        // Add to full buffer for final reconciliation
-        self.full_buffer.extend_from_slice(samples);
-
-        // Add to pending samples
+        // Add to pending samples (at input sample rate)
         self.pending_samples.extend_from_slice(samples);
 
-        // Check if we have enough for a new chunk
-        while self.pending_samples.len() >= self.config.chunk_size_samples {
+        // Check if we have enough for a new chunk (using input-rate chunk size)
+        while self.pending_samples.len() >= self.input_chunk_size {
             self.create_chunk();
         }
     }
 
     /// Create a new chunk from pending samples
     fn create_chunk(&mut self) {
-        if self.pending_samples.len() < self.config.chunk_size_samples {
+        if self.pending_samples.len() < self.input_chunk_size {
             return;
         }
 
         let chunk_index = self.chunk_counter.fetch_add(1, Ordering::SeqCst);
         let timestamp_ms = self.calculate_timestamp(chunk_index);
 
-        // Get samples for this chunk
-        let chunk_samples: Vec<f32> = self
+        // Get samples for this chunk (at input sample rate)
+        let input_samples: Vec<f32> = self
             .pending_samples
-            .drain(..self.config.chunk_size_samples)
+            .drain(..self.input_chunk_size)
             .collect();
+
+        // Resample to 16kHz if needed
+        let chunk_samples = if let Some(ref mut resampler) = self.resampler {
+            match resampler.process(&[input_samples.clone()], None) {
+                Ok(output) => {
+                    if let Some(channel) = output.into_iter().next() {
+                        channel
+                    } else {
+                        input_samples.clone()
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Resampling failed for chunk {}: {}", chunk_index, e);
+                    // Fall back to input samples (will be wrong rate but better than nothing)
+                    input_samples.clone()
+                }
+            }
+        } else {
+            // No resampling needed, already at 16kHz
+            input_samples.clone()
+        };
+
+        // Add resampled samples to full buffer for final reconciliation
+        self.full_buffer.extend_from_slice(&chunk_samples);
 
         // Keep overlap samples for next chunk's context
         // This means we prepend overlap to next chunk, not keep it in pending
@@ -277,7 +336,41 @@ impl ChunkedAudioBuffer {
         let timestamp_ms = self.calculate_timestamp(chunk_index);
         let has_overlap = chunk_index > 0;
 
-        let chunk_samples = std::mem::take(&mut self.pending_samples);
+        let input_samples = std::mem::take(&mut self.pending_samples);
+
+        // Resample to 16kHz if needed
+        let chunk_samples = if let Some(ref mut resampler) = self.resampler {
+            // For final chunk, we need to pad to resampler's chunk size
+            let chunk_size = resampler.input_frames_max();
+            let mut padded = input_samples.clone();
+            if padded.len() < chunk_size {
+                padded.resize(chunk_size, 0.0);
+            }
+
+            match resampler.process(&[padded], None) {
+                Ok(output) => {
+                    if let Some(channel) = output.into_iter().next() {
+                        // Trim to actual output size
+                        let expected_len = (input_samples.len() as f64
+                            * WHISPER_SAMPLE_RATE as f64
+                            / self.input_sample_rate as f64)
+                            .ceil() as usize;
+                        channel.into_iter().take(expected_len).collect()
+                    } else {
+                        input_samples.clone()
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!("Resampling failed for final chunk: {}", e);
+                    input_samples.clone()
+                }
+            }
+        } else {
+            input_samples.clone()
+        };
+
+        // Add to full buffer
+        self.full_buffer.extend_from_slice(&chunk_samples);
 
         Some(AudioChunk::new(
             chunk_samples,
@@ -359,6 +452,11 @@ mod tests {
 
         assert_eq!(buffer.pending_chunk_count(), 2);
         assert_eq!(buffer.get_remaining_samples().len(), 16000); // 1 second remaining
+        // Full buffer only contains completed chunks until flush_remaining is called
+        assert_eq!(buffer.get_full_buffer().len(), 64000); // 2 chunks * 32000
+
+        // After flushing remaining, full buffer should have all samples
+        buffer.flush_remaining();
         assert_eq!(buffer.get_full_buffer().len(), 80000);
     }
 
