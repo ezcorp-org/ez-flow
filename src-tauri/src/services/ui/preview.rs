@@ -58,11 +58,10 @@ pub fn get_or_create_preview<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWi
         .resizable(false)
         .decorations(false)
         .always_on_top(true)
-        .transparent(true)
         .skip_taskbar(true)
         .visible(false)
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|e: tauri::Error| e.to_string())?;
 
     Ok(window)
 }
