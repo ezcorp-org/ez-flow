@@ -4,12 +4,22 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [svelte()],
+  plugins: [
+    svelte({
+      // Inject CSS into JS instead of emitting separate CSS files
+      // This avoids the PostCSS parsing issue with WebKitGTK
+      emitCss: false,
+    })
+  ],
 
   resolve: {
     alias: {
       $lib: path.resolve('./src/lib'),
     },
+  },
+
+  css: {
+    devSourcemap: true,
   },
 
   // Vite options tailored for Tauri development
