@@ -1200,7 +1200,7 @@ describe('Close button functionality', () => {
 		handleClose();
 
 		expect(text).toBe('');
-		expect(previewState).toBe('preview');
+		expect(previewState as PreviewState).toBe('preview');
 		expect(windowHidden).toBe(true);
 	});
 
@@ -1251,7 +1251,7 @@ describe('Recording state check on mount', () => {
 
 		// Recording is active
 		checkRecordingOnMount(true, true);
-		expect(previewState).toBe('streaming');
+		expect(previewState as PreviewState).toBe('streaming');
 		expect(text).toBe('');
 
 		// Reset
@@ -1260,7 +1260,7 @@ describe('Recording state check on mount', () => {
 
 		// Recording not active
 		checkRecordingOnMount(false, true);
-		expect(previewState).toBe('preview');
+		expect(previewState as PreviewState).toBe('preview');
 		expect(text).toBe('old text');
 
 		// Reset
@@ -1269,7 +1269,7 @@ describe('Recording state check on mount', () => {
 
 		// Streaming disabled
 		checkRecordingOnMount(true, false);
-		expect(previewState).toBe('preview');
+		expect(previewState as PreviewState).toBe('preview');
 		expect(text).toBe('old text');
 	});
 });
