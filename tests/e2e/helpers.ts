@@ -78,6 +78,13 @@ export const testIds = {
   // Status
   statusIndicator: 'status-indicator',
   errorMessage: 'error-message',
+
+  // Preview window
+  transcriptionPreview: 'transcription-preview',
+  previewText: 'preview-text',
+  previewStateIndicator: 'state-indicator',
+  previewStateLabel: 'state-label',
+  previewCloseButton: 'close-button',
 };
 
 /**

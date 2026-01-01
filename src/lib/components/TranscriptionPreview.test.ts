@@ -23,6 +23,8 @@ describe('TranscriptionPreview component logic', () => {
 			switch (currentState) {
 				case 'preview':
 					return { color: 'bg-yellow-400', animate: false };
+				case 'streaming':
+					return { color: 'bg-purple-400', animate: true };
 				case 'injecting':
 					return { color: 'bg-blue-400', animate: true };
 				case 'complete':
@@ -38,6 +40,12 @@ describe('TranscriptionPreview component logic', () => {
 			const result = getStateStyles('preview');
 			expect(result.color).toBe('bg-yellow-400');
 			expect(result.animate).toBe(false);
+		});
+
+		test('should return purple for streaming state with animation', () => {
+			const result = getStateStyles('streaming');
+			expect(result.color).toBe('bg-purple-400');
+			expect(result.animate).toBe(true);
 		});
 
 		test('should return blue for injecting state with animation', () => {
@@ -64,6 +72,8 @@ describe('TranscriptionPreview component logic', () => {
 			switch (currentState) {
 				case 'preview':
 					return 'Preview';
+				case 'streaming':
+					return 'Transcribing...';
 				case 'injecting':
 					return 'Injecting...';
 				case 'complete':
@@ -77,6 +87,10 @@ describe('TranscriptionPreview component logic', () => {
 
 		test('should return "Preview" for preview state', () => {
 			expect(getStateLabel('preview')).toBe('Preview');
+		});
+
+		test('should return "Transcribing..." for streaming state', () => {
+			expect(getStateLabel('streaming')).toBe('Transcribing...');
 		});
 
 		test('should return "Injecting..." for injecting state', () => {
@@ -1156,5 +1170,134 @@ describe('Settings change event handling', () => {
 		expect(showVisualizer).toBe(true);
 		expect(previewDuration).toBe(3);
 		expect(streamingEnabled).toBe(true);
+	});
+});
+
+describe('Close button functionality', () => {
+	test('should call onClose handler when close button is clicked', () => {
+		let closeHandlerCalled = false;
+		const onClose = () => {
+			closeHandlerCalled = true;
+		};
+
+		// Simulate close button click
+		onClose();
+
+		expect(closeHandlerCalled).toBe(true);
+	});
+
+	test('should reset state when close is triggered', () => {
+		let text = 'Some transcription text';
+		let previewState: PreviewState = 'streaming';
+		let windowHidden = false;
+
+		const handleClose = () => {
+			windowHidden = true;
+			text = '';
+			previewState = 'preview';
+		};
+
+		handleClose();
+
+		expect(text).toBe('');
+		expect(previewState).toBe('preview');
+		expect(windowHidden).toBe(true);
+	});
+
+	test('should cancel hide timer on close', () => {
+		let timerCancelled = false;
+		let hideTimeout: ReturnType<typeof setTimeout> | undefined = setTimeout(() => {}, 5000);
+
+		const cancelHide = () => {
+			if (hideTimeout) {
+				clearTimeout(hideTimeout);
+				hideTimeout = undefined;
+				timerCancelled = true;
+			}
+		};
+
+		const handleClose = () => {
+			cancelHide();
+		};
+
+		handleClose();
+
+		expect(timerCancelled).toBe(true);
+		expect(hideTimeout).toBeUndefined();
+	});
+
+	test('close button should be visible when onClose is provided', () => {
+		const onClose = () => {};
+		const shouldShowCloseButton = (callback: (() => void) | undefined): boolean => {
+			return callback !== undefined;
+		};
+
+		expect(shouldShowCloseButton(onClose)).toBe(true);
+		expect(shouldShowCloseButton(undefined)).toBe(false);
+	});
+});
+
+describe('Recording state check on mount', () => {
+	test('should set streaming state if recording is active on mount', () => {
+		let previewState: PreviewState = 'preview';
+		let text = '';
+
+		const checkRecordingOnMount = (isRecording: boolean, streamingEnabled: boolean) => {
+			if (isRecording && streamingEnabled) {
+				text = '';
+				previewState = 'streaming';
+			}
+		};
+
+		// Recording is active
+		checkRecordingOnMount(true, true);
+		expect(previewState).toBe('streaming');
+		expect(text).toBe('');
+
+		// Reset
+		previewState = 'preview';
+		text = 'old text';
+
+		// Recording not active
+		checkRecordingOnMount(false, true);
+		expect(previewState).toBe('preview');
+		expect(text).toBe('old text');
+
+		// Reset
+		previewState = 'preview';
+		text = 'old text';
+
+		// Streaming disabled
+		checkRecordingOnMount(true, false);
+		expect(previewState).toBe('preview');
+		expect(text).toBe('old text');
+	});
+});
+
+describe('Text display in streaming state', () => {
+	test('should show "Listening..." when streaming with empty text', () => {
+		const getDisplayText = (text: string, state: PreviewState): string => {
+			if (text) {
+				return text;
+			} else if (state === 'streaming') {
+				return 'Listening...';
+			} else {
+				return 'Waiting for transcription...';
+			}
+		};
+
+		expect(getDisplayText('', 'streaming')).toBe('Listening...');
+		expect(getDisplayText('', 'preview')).toBe('Waiting for transcription...');
+		expect(getDisplayText('Hello world', 'streaming')).toBe('Hello world');
+	});
+
+	test('should show streaming cursor when streaming with text', () => {
+		const shouldShowStreamingCursor = (text: string, state: PreviewState): boolean => {
+			return text.length > 0 && state === 'streaming';
+		};
+
+		expect(shouldShowStreamingCursor('Hello', 'streaming')).toBe(true);
+		expect(shouldShowStreamingCursor('', 'streaming')).toBe(false);
+		expect(shouldShowStreamingCursor('Hello', 'complete')).toBe(false);
 	});
 });
