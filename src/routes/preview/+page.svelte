@@ -90,6 +90,17 @@
 		const appWindow = getCurrentWindow();
 		await loadSettings();
 
+		// Check if recording is already active (in case we missed the event)
+		try {
+			const isRecording = await invoke<boolean>('is_recording');
+			if (isRecording && streamingEnabled) {
+				text = '';
+				previewState = 'streaming';
+			}
+		} catch (e) {
+			console.error('Failed to check recording state:', e);
+		}
+
 		// Listen for preview text events
 		unlisteners.push(
 			await listen<PreviewTextPayload>('preview://text', async (event) => {

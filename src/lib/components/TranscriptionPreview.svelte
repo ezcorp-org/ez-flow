@@ -83,12 +83,13 @@
 			{/if}
 			{#if onClose}
 				<button
-					onclick={onClose}
-					class="close-button p-1 rounded hover:bg-neutral-700/50 text-neutral-400 hover:text-neutral-200 transition-colors"
+					onclick={(e) => { e.stopPropagation(); onClose(); }}
+					class="close-button p-1.5 rounded hover:bg-neutral-700 text-neutral-300 hover:text-white transition-colors"
 					data-testid="close-button"
 					aria-label="Close preview"
+					type="button"
 				>
-					<X size={16} />
+					<X size={18} />
 				</button>
 			{/if}
 		</div>
@@ -138,6 +139,9 @@
 
 	.close-button {
 		-webkit-app-region: no-drag;
+		cursor: pointer;
+		pointer-events: auto;
+		z-index: 10;
 	}
 
 	.text-container::-webkit-scrollbar {

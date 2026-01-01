@@ -137,23 +137,32 @@ impl ChunkedAudioBuffer {
 
         // Create resampler if needed
         let resampler = if input_sample_rate != WHISPER_SAMPLE_RATE {
-            // Use FFT-based resampler for efficiency
-            // chunk_size must be a power of 2 for FFT, so find nearest
-            let fft_size = input_chunk_size.next_power_of_two().min(8192);
+            // Use FFT-based resampler with a reasonable block size
+            // Use 1024 samples per block for good balance of efficiency and latency
+            let block_size = 1024;
             match FftFixedIn::<f32>::new(
                 input_sample_rate as usize,
                 WHISPER_SAMPLE_RATE as usize,
-                fft_size,
+                block_size,
                 2, // sub_chunks
                 1, // channels
             ) {
-                Ok(r) => Some(r),
+                Ok(r) => {
+                    tracing::info!(
+                        "Created resampler: {}Hz -> {}Hz, block_size={}",
+                        input_sample_rate,
+                        WHISPER_SAMPLE_RATE,
+                        block_size
+                    );
+                    Some(r)
+                }
                 Err(e) => {
                     tracing::error!("Failed to create resampler: {}", e);
                     None
                 }
             }
         } else {
+            tracing::info!("No resampling needed, input already at {}Hz", WHISPER_SAMPLE_RATE);
             None
         };
 
@@ -205,6 +214,12 @@ impl ChunkedAudioBuffer {
 
         // Check if we have enough for a new chunk (using input-rate chunk size)
         while self.pending_samples.len() >= self.input_chunk_size {
+            tracing::debug!(
+                "Creating chunk: pending={}, chunk_size={}, input_rate={}",
+                self.pending_samples.len(),
+                self.input_chunk_size,
+                self.input_sample_rate
+            );
             self.create_chunk();
         }
     }
@@ -226,20 +241,47 @@ impl ChunkedAudioBuffer {
 
         // Resample to 16kHz if needed
         let chunk_samples = if let Some(ref mut resampler) = self.resampler {
-            match resampler.process(&[input_samples.clone()], None) {
-                Ok(output) => {
-                    if let Some(channel) = output.into_iter().next() {
-                        channel
-                    } else {
-                        input_samples.clone()
+            let block_size = resampler.input_frames_max();
+            let mut output_samples = Vec::new();
+            let mut position = 0;
+
+            while position < input_samples.len() {
+                let end = (position + block_size).min(input_samples.len());
+                let mut block = input_samples[position..end].to_vec();
+
+                // Pad last block if needed
+                if block.len() < block_size {
+                    block.resize(block_size, 0.0);
+                }
+
+                match resampler.process(&[block], None) {
+                    Ok(result) => {
+                        if let Some(channel) = result.into_iter().next() {
+                            output_samples.extend(channel);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Resampling block failed: {}", e);
                     }
                 }
-                Err(e) => {
-                    tracing::warn!("Resampling failed for chunk {}: {}", chunk_index, e);
-                    // Fall back to input samples (will be wrong rate but better than nothing)
-                    input_samples.clone()
-                }
+                position += block_size;
             }
+
+            // Trim to expected output size
+            let expected_len = (input_samples.len() as f64
+                * WHISPER_SAMPLE_RATE as f64
+                / self.input_sample_rate as f64)
+                .ceil() as usize;
+            output_samples.truncate(expected_len);
+
+            tracing::debug!(
+                "Resampled chunk {}: {} -> {} samples",
+                chunk_index,
+                input_samples.len(),
+                output_samples.len()
+            );
+
+            output_samples
         } else {
             // No resampling needed, already at 16kHz
             input_samples.clone()
@@ -340,31 +382,39 @@ impl ChunkedAudioBuffer {
 
         // Resample to 16kHz if needed
         let chunk_samples = if let Some(ref mut resampler) = self.resampler {
-            // For final chunk, we need to pad to resampler's chunk size
-            let chunk_size = resampler.input_frames_max();
-            let mut padded = input_samples.clone();
-            if padded.len() < chunk_size {
-                padded.resize(chunk_size, 0.0);
-            }
+            let block_size = resampler.input_frames_max();
+            let mut output_samples = Vec::new();
+            let mut position = 0;
 
-            match resampler.process(&[padded], None) {
-                Ok(output) => {
-                    if let Some(channel) = output.into_iter().next() {
-                        // Trim to actual output size
-                        let expected_len = (input_samples.len() as f64
-                            * WHISPER_SAMPLE_RATE as f64
-                            / self.input_sample_rate as f64)
-                            .ceil() as usize;
-                        channel.into_iter().take(expected_len).collect()
-                    } else {
-                        input_samples.clone()
+            while position < input_samples.len() {
+                let end = (position + block_size).min(input_samples.len());
+                let mut block = input_samples[position..end].to_vec();
+
+                // Pad last block if needed
+                if block.len() < block_size {
+                    block.resize(block_size, 0.0);
+                }
+
+                match resampler.process(&[block], None) {
+                    Ok(result) => {
+                        if let Some(channel) = result.into_iter().next() {
+                            output_samples.extend(channel);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Resampling block failed for final chunk: {}", e);
                     }
                 }
-                Err(e) => {
-                    tracing::warn!("Resampling failed for final chunk: {}", e);
-                    input_samples.clone()
-                }
+                position += block_size;
             }
+
+            // Trim to expected output size
+            let expected_len = (input_samples.len() as f64
+                * WHISPER_SAMPLE_RATE as f64
+                / self.input_sample_rate as f64)
+                .ceil() as usize;
+            output_samples.truncate(expected_len);
+            output_samples
         } else {
             input_samples.clone()
         };
