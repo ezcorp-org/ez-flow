@@ -43,6 +43,7 @@ pub fn run() {
         .manage(services::platform::TextInjectorState::default())
         .manage(services::storage::SettingsState::default())
         .manage(services::storage::DatabaseState::default())
+        .manage(services::streaming::SharedStreamingService::default())
         .setup(|app| {
             // Set up system tray
             services::tray::setup_tray(app.handle())?;

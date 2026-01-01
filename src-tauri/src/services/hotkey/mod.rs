@@ -15,6 +15,7 @@ use crate::commands::TranscriptionState;
 use crate::models::HistoryEntry;
 use crate::services::audio::processing::resample_for_whisper;
 use crate::services::storage::{DatabaseState, SettingsState};
+use crate::services::streaming::SharedStreamingService;
 use chrono::Utc;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
@@ -50,6 +51,8 @@ pub struct HotkeyState {
     pub last_error: Arc<RwLock<Option<String>>>,
     /// Timestamp when recording started (millis since epoch)
     pub recording_start_time: Arc<AtomicU64>,
+    /// Whether streaming mode is active for current recording
+    pub is_streaming_active: Arc<AtomicBool>,
 }
 
 impl Default for HotkeyState {
@@ -60,6 +63,7 @@ impl Default for HotkeyState {
             is_registered: Arc::new(AtomicBool::new(false)),
             last_error: Arc::new(RwLock::new(None)),
             recording_start_time: Arc::new(AtomicU64::new(0)),
+            is_streaming_active: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -104,6 +108,7 @@ pub fn register_hotkey<R: Runtime>(
 
     let is_recording = state.is_hotkey_recording.clone();
     let recording_start_time = state.recording_start_time.clone();
+    let is_streaming_active = state.is_streaming_active.clone();
 
     // Register with the global shortcut manager
     let result = app
@@ -116,8 +121,44 @@ pub fn register_hotkey<R: Runtime>(
                     // Store the start time
                     recording_start_time.store(current_time_ms(), Ordering::SeqCst);
 
-                    // Actually start recording
+                    // Check if streaming is enabled in settings
+                    let settings_state = app.state::<SettingsState>();
+                    let streaming_enabled = settings_state.get_streaming_enabled_sync();
+                    let streaming_mode = settings_state.get_streaming_mode_sync();
+
+                    // Get audio state
                     let audio_state = app.state::<AudioState>();
+
+                    // Enable streaming mode if configured
+                    if streaming_enabled {
+                        tracing::info!("Streaming mode enabled, setting up streaming transcription");
+                        is_streaming_active.store(true, Ordering::SeqCst);
+
+                        // Enable streaming on audio capture
+                        if let Err(e) = audio_state.send_command(AudioCommand::EnableStreaming) {
+                            tracing::warn!("Failed to enable streaming: {:?}", e);
+                            is_streaming_active.store(false, Ordering::SeqCst);
+                        }
+
+                        // Start streaming session
+                        let streaming_service = app.state::<SharedStreamingService>();
+                        let service = streaming_service.get();
+                        let mode = streaming_mode;
+                        tauri::async_runtime::spawn(async move {
+                            service.start(mode).await;
+                        });
+
+                        // Spawn chunk processing task
+                        let app_for_chunks = app.clone();
+                        let is_recording_clone = is_recording.clone();
+                        tauri::async_runtime::spawn(async move {
+                            process_streaming_chunks(app_for_chunks, is_recording_clone).await;
+                        });
+                    } else {
+                        is_streaming_active.store(false, Ordering::SeqCst);
+                    }
+
+                    // Actually start recording
                     match audio_state.send_command(AudioCommand::Start) {
                         Ok(AudioResponse::Ok) => {
                             tracing::info!("Recording started from hotkey");
@@ -132,16 +173,19 @@ pub fn register_hotkey<R: Runtime>(
                         Ok(AudioResponse::Error(e)) => {
                             tracing::error!("Failed to start recording from hotkey: {}", e);
                             is_recording.store(false, Ordering::SeqCst);
+                            is_streaming_active.store(false, Ordering::SeqCst);
                         }
                         Ok(_) => {
                             tracing::error!(
                                 "Unexpected response when starting recording from hotkey"
                             );
                             is_recording.store(false, Ordering::SeqCst);
+                            is_streaming_active.store(false, Ordering::SeqCst);
                         }
                         Err(e) => {
                             tracing::error!("Error starting recording from hotkey: {}", e);
                             is_recording.store(false, Ordering::SeqCst);
+                            is_streaming_active.store(false, Ordering::SeqCst);
                         }
                     }
                 }
@@ -162,7 +206,9 @@ pub fn register_hotkey<R: Runtime>(
                     }
 
                     tracing::info!("Hotkey released after {}ms - stopping recording", elapsed);
+                    let was_streaming = is_streaming_active.load(Ordering::SeqCst);
                     is_recording.store(false, Ordering::SeqCst);
+                    is_streaming_active.store(false, Ordering::SeqCst);
 
                     // Emit event for tray update
                     let _ = app.emit("tray://update-recording-state", false);
@@ -171,104 +217,13 @@ pub fn register_hotkey<R: Runtime>(
                     let audio_state = app.state::<AudioState>();
                     audio_state.stop_level_emitter();
 
-                    let buffer = match audio_state.send_command(AudioCommand::Stop) {
-                        Ok(AudioResponse::Buffer(Ok(buf))) => buf,
-                        Ok(AudioResponse::Buffer(Err(e))) => {
-                            tracing::error!("Failed to stop recording from hotkey: {}", e);
-                            let _ = app.emit("hotkey://recording-stopped", ());
-                            return;
-                        }
-                        Ok(_) => {
-                            tracing::error!(
-                                "Unexpected response when stopping recording from hotkey"
-                            );
-                            let _ = app.emit("hotkey://recording-stopped", ());
-                            return;
-                        }
-                        Err(e) => {
-                            tracing::error!("Error stopping recording from hotkey: {}", e);
-                            let _ = app.emit("hotkey://recording-stopped", ());
-                            return;
-                        }
-                    };
-
-                    let _ = app.emit("hotkey://recording-stopped", ());
-
-                    if buffer.samples.is_empty() {
-                        tracing::warn!("No audio recorded from hotkey");
-                        return;
+                    if was_streaming {
+                        // Handle streaming completion
+                        handle_streaming_completion(app.clone());
+                    } else {
+                        // Use batch transcription (existing logic)
+                        handle_batch_transcription(app.clone());
                     }
-
-                    // Resample for Whisper
-                    let samples = match resample_for_whisper(buffer) {
-                        Ok(s) => s,
-                        Err(e) => {
-                            tracing::error!("Failed to resample audio from hotkey: {}", e);
-                            return;
-                        }
-                    };
-
-                    // Get states for async task
-                    let transcription_state = app.state::<TranscriptionState>();
-                    let settings_state = app.state::<SettingsState>();
-                    let engine = transcription_state.engine.clone();
-                    let model_id = settings_state.get_model_id_sync();
-                    let app_handle = app.clone();
-
-                    // Spawn async task for transcription
-                    tauri::async_runtime::spawn(async move {
-                        tracing::info!("Starting transcription from hotkey...");
-
-                        match engine.transcribe_with_auto_load(samples, &model_id).await {
-                            Ok(result) => {
-                                tracing::info!(
-                                    "Hotkey transcription complete: {} chars",
-                                    result.text.len()
-                                );
-
-                                // Save to history
-                                let database_state = app_handle.state::<DatabaseState>();
-                                if let Some(db) = database_state.get() {
-                                    let entry = HistoryEntry {
-                                        id: 0,
-                                        text: result.text.clone(),
-                                        timestamp: Utc::now().to_rfc3339(),
-                                        duration_ms: result.duration_ms,
-                                        model_id: result.model_id.clone(),
-                                        language: result.language.clone(),
-                                        gpu_used: result.gpu_used,
-                                    };
-                                    if let Err(e) = db.insert_history(&entry).await {
-                                        tracing::error!(
-                                            "Failed to save transcription to history: {}",
-                                            e
-                                        );
-                                    } else {
-                                        // Emit event to refresh history UI
-                                        let _ = app_handle.emit("history://new-entry", ());
-                                    }
-                                }
-
-                                // Copy to clipboard
-                                if !result.text.is_empty() {
-                                    if let Err(e) = app_handle.clipboard().write_text(&result.text)
-                                    {
-                                        tracing::error!("Failed to copy to clipboard: {}", e);
-                                    } else {
-                                        tracing::info!("Transcription copied to clipboard");
-                                    }
-                                }
-
-                                let _ = app_handle
-                                    .emit("hotkey://transcription-complete", &result.text);
-                            }
-                            Err(e) => {
-                                tracing::error!("Hotkey transcription failed: {}", e);
-                                let _ =
-                                    app_handle.emit("hotkey://transcription-error", e.to_string());
-                            }
-                        }
-                    });
                 }
             }
         });
@@ -370,6 +325,309 @@ pub fn setup_hotkey_with_key<R: Runtime>(app: &AppHandle<R>, state: &HotkeyState
             let _ = app.emit("hotkey://registration-failed", e.to_string());
         }
     }
+}
+
+/// Process audio chunks in streaming mode while recording is active
+async fn process_streaming_chunks<R: Runtime + 'static>(
+    app: AppHandle<R>,
+    is_recording: Arc<AtomicBool>,
+) {
+    use std::time::Duration;
+
+    tracing::info!("Starting streaming chunk processing loop");
+
+    let audio_state = app.state::<AudioState>();
+    let streaming_service = app.state::<SharedStreamingService>();
+    let transcription_state = app.state::<TranscriptionState>();
+    let settings_state = app.state::<SettingsState>();
+
+    let service = streaming_service.get();
+    let engine = transcription_state.engine.clone();
+    let model_id = settings_state.get_model_id_sync();
+
+    // Poll for chunks every 100ms while recording
+    let poll_interval = Duration::from_millis(100);
+    let mut chunks_processed = 0u32;
+
+    while is_recording.load(Ordering::SeqCst) {
+        // Sleep before checking to allow chunks to accumulate
+        tokio::time::sleep(poll_interval).await;
+
+        // Get pending chunks from audio capture
+        let chunks = match audio_state.send_command(AudioCommand::GetChunks) {
+            Ok(AudioResponse::Chunks(c)) => c,
+            Ok(_) => continue,
+            Err(e) => {
+                tracing::warn!("Failed to get audio chunks: {}", e);
+                continue;
+            }
+        };
+
+        if chunks.is_empty() {
+            continue;
+        }
+
+        tracing::debug!("Processing {} audio chunks", chunks.len());
+
+        // Process each chunk through streaming service
+        for chunk in chunks {
+            match service.process_chunk(&app, &engine, &chunk, &model_id).await {
+                Ok(result) => {
+                    chunks_processed += 1;
+                    tracing::debug!(
+                        "Processed chunk {}: '{}' ({} chars)",
+                        chunk.chunk_index,
+                        result.text.chars().take(50).collect::<String>(),
+                        result.text.len()
+                    );
+                }
+                Err(e) => {
+                    // Don't emit error for "already processed" - just skip
+                    if !e.to_string().contains("already processed") {
+                        tracing::warn!("Failed to process chunk {}: {}", chunk.chunk_index, e);
+                        service.emit_error(&app, &e.to_string(), Some(chunk.chunk_index));
+                    }
+                }
+            }
+        }
+    }
+
+    tracing::info!(
+        "Streaming chunk processing loop ended. Processed {} chunks total",
+        chunks_processed
+    );
+}
+
+/// Handle completion of streaming transcription
+fn handle_streaming_completion<R: Runtime + 'static>(app: AppHandle<R>) {
+    tracing::info!("Handling streaming transcription completion");
+
+    let audio_state = app.state::<AudioState>();
+    let streaming_service = app.state::<SharedStreamingService>();
+    let transcription_state = app.state::<TranscriptionState>();
+    let settings_state = app.state::<SettingsState>();
+
+    // Stop the audio recording and get buffer for batch fallback
+    let buffer = match audio_state.send_command(AudioCommand::Stop) {
+        Ok(AudioResponse::Buffer(Ok(buf))) => buf,
+        Ok(AudioResponse::Buffer(Err(e))) => {
+            tracing::error!("Failed to stop recording: {}", e);
+            let _ = app.emit("hotkey://recording-stopped", ());
+            return;
+        }
+        Ok(_) => {
+            tracing::error!("Unexpected response when stopping recording");
+            let _ = app.emit("hotkey://recording-stopped", ());
+            return;
+        }
+        Err(e) => {
+            tracing::error!("Error stopping recording: {}", e);
+            let _ = app.emit("hotkey://recording-stopped", ());
+            return;
+        }
+    };
+
+    let _ = app.emit("hotkey://recording-stopped", ());
+
+    if buffer.samples.is_empty() {
+        tracing::warn!("No audio recorded");
+        return;
+    }
+
+    // Flush any remaining audio chunk
+    let final_chunk = match audio_state.send_command(AudioCommand::FlushChunk) {
+        Ok(AudioResponse::Chunk(c)) => c,
+        _ => None,
+    };
+
+    // Get full buffer for reconciliation
+    let full_samples = match audio_state.send_command(AudioCommand::GetFullBuffer) {
+        Ok(AudioResponse::Samples(s)) if !s.is_empty() => s,
+        _ => {
+            // Fall back to regular buffer if streaming buffer is empty
+            match resample_for_whisper(buffer) {
+                Ok(s) => s,
+                Err(e) => {
+                    tracing::error!("Failed to resample audio: {}", e);
+                    return;
+                }
+            }
+        }
+    };
+
+    // Disable streaming mode
+    let _ = audio_state.send_command(AudioCommand::DisableStreaming);
+
+    // Get service and engine for async task
+    let service = streaming_service.get();
+    let engine = transcription_state.engine.clone();
+    let model_id = settings_state.get_model_id_sync();
+
+    // Build initial prompt from settings
+    let settings = tauri::async_runtime::block_on(async { settings_state.get().await });
+    let initial_prompt = crate::services::transcription::build_initial_prompt(
+        &settings.custom_vocabulary,
+        settings.context_prompt.as_deref(),
+        settings.use_context_prompt,
+    );
+
+    // Spawn async task for reconciliation and final processing
+    tauri::async_runtime::spawn(async move {
+        // Process final chunk if available
+        if let Some(chunk) = final_chunk {
+            tracing::debug!("Processing final chunk {}", chunk.chunk_index);
+            let _ = service.process_chunk(&app, &engine, &chunk, &model_id).await;
+        }
+
+        // Force emit final partial update
+        service.force_emit_partial(&app).await;
+
+        // Perform reconciliation based on streaming mode
+        let final_text = match service
+            .reconcile(&app, &engine, &full_samples, &model_id, initial_prompt.as_deref())
+            .await
+        {
+            Ok(text) => text,
+            Err(e) => {
+                tracing::error!("Reconciliation failed: {}", e);
+                // Fall back to streaming accumulated text
+                service.get_accumulated_text().await
+            }
+        };
+
+        // Stop streaming session
+        service.stop().await;
+
+        tracing::info!(
+            "Streaming transcription complete: {} chars",
+            final_text.len()
+        );
+
+        // Save to history
+        let database_state = app.state::<DatabaseState>();
+        if let Some(db) = database_state.get() {
+            let entry = HistoryEntry {
+                id: 0,
+                text: final_text.clone(),
+                timestamp: Utc::now().to_rfc3339(),
+                duration_ms: (full_samples.len() as f32 / 16.0) as u64, // approximate
+                model_id: model_id.clone(),
+                language: None,
+                gpu_used: false, // we don't have this info easily
+            };
+            if let Err(e) = db.insert_history(&entry).await {
+                tracing::error!("Failed to save transcription to history: {}", e);
+            } else {
+                let _ = app.emit("history://new-entry", ());
+            }
+        }
+
+        // Copy to clipboard
+        if !final_text.is_empty() {
+            if let Err(e) = app.clipboard().write_text(&final_text) {
+                tracing::error!("Failed to copy to clipboard: {}", e);
+            } else {
+                tracing::info!("Transcription copied to clipboard");
+            }
+        }
+
+        let _ = app.emit("hotkey://transcription-complete", &final_text);
+    });
+}
+
+/// Handle batch transcription (non-streaming mode)
+fn handle_batch_transcription<R: Runtime + 'static>(app: AppHandle<R>) {
+    let audio_state = app.state::<AudioState>();
+
+    let buffer = match audio_state.send_command(AudioCommand::Stop) {
+        Ok(AudioResponse::Buffer(Ok(buf))) => buf,
+        Ok(AudioResponse::Buffer(Err(e))) => {
+            tracing::error!("Failed to stop recording from hotkey: {}", e);
+            let _ = app.emit("hotkey://recording-stopped", ());
+            return;
+        }
+        Ok(_) => {
+            tracing::error!("Unexpected response when stopping recording from hotkey");
+            let _ = app.emit("hotkey://recording-stopped", ());
+            return;
+        }
+        Err(e) => {
+            tracing::error!("Error stopping recording from hotkey: {}", e);
+            let _ = app.emit("hotkey://recording-stopped", ());
+            return;
+        }
+    };
+
+    let _ = app.emit("hotkey://recording-stopped", ());
+
+    if buffer.samples.is_empty() {
+        tracing::warn!("No audio recorded from hotkey");
+        return;
+    }
+
+    // Resample for Whisper
+    let samples = match resample_for_whisper(buffer) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::error!("Failed to resample audio from hotkey: {}", e);
+            return;
+        }
+    };
+
+    // Get states for async task
+    let transcription_state = app.state::<TranscriptionState>();
+    let settings_state = app.state::<SettingsState>();
+    let engine = transcription_state.engine.clone();
+    let model_id = settings_state.get_model_id_sync();
+
+    // Spawn async task for transcription
+    tauri::async_runtime::spawn(async move {
+        tracing::info!("Starting transcription from hotkey...");
+
+        match engine.transcribe_with_auto_load(samples, &model_id).await {
+            Ok(result) => {
+                tracing::info!(
+                    "Hotkey transcription complete: {} chars",
+                    result.text.len()
+                );
+
+                // Save to history
+                let database_state = app.state::<DatabaseState>();
+                if let Some(db) = database_state.get() {
+                    let entry = HistoryEntry {
+                        id: 0,
+                        text: result.text.clone(),
+                        timestamp: Utc::now().to_rfc3339(),
+                        duration_ms: result.duration_ms,
+                        model_id: result.model_id.clone(),
+                        language: result.language.clone(),
+                        gpu_used: result.gpu_used,
+                    };
+                    if let Err(e) = db.insert_history(&entry).await {
+                        tracing::error!("Failed to save transcription to history: {}", e);
+                    } else {
+                        // Emit event to refresh history UI
+                        let _ = app.emit("history://new-entry", ());
+                    }
+                }
+
+                // Copy to clipboard
+                if !result.text.is_empty() {
+                    if let Err(e) = app.clipboard().write_text(&result.text) {
+                        tracing::error!("Failed to copy to clipboard: {}", e);
+                    } else {
+                        tracing::info!("Transcription copied to clipboard");
+                    }
+                }
+
+                let _ = app.emit("hotkey://transcription-complete", &result.text);
+            }
+            Err(e) => {
+                tracing::error!("Hotkey transcription failed: {}", e);
+                let _ = app.emit("hotkey://transcription-error", e.to_string());
+            }
+        }
+    });
 }
 
 #[cfg(test)]

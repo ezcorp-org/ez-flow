@@ -112,6 +112,30 @@ impl SettingsState {
         }
     }
 
+    /// Get streaming_enabled synchronously (non-blocking)
+    /// Returns whether streaming transcription is enabled
+    pub fn get_streaming_enabled_sync(&self) -> bool {
+        match self.settings.try_read() {
+            Ok(guard) => guard.streaming_enabled,
+            Err(_) => {
+                tracing::warn!("Could not acquire settings lock, using default streaming_enabled");
+                true // Default to enabled
+            }
+        }
+    }
+
+    /// Get streaming_mode synchronously (non-blocking)
+    /// Returns the streaming transcription mode
+    pub fn get_streaming_mode_sync(&self) -> crate::models::settings::StreamingMode {
+        match self.settings.try_read() {
+            Ok(guard) => guard.streaming_mode,
+            Err(_) => {
+                tracing::warn!("Could not acquire settings lock, using default streaming_mode");
+                crate::models::settings::StreamingMode::default()
+            }
+        }
+    }
+
     /// Update settings and save to disk
     pub async fn update(&self, settings: Settings) -> Result<(), SettingsError> {
         save_settings(&settings)?;

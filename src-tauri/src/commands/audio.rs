@@ -29,6 +29,16 @@ pub enum AudioCommand {
     GetDuration,
     GetLevel,
     Shutdown,
+    /// Enable streaming mode for chunk-based transcription
+    EnableStreaming,
+    /// Disable streaming mode
+    DisableStreaming,
+    /// Get pending audio chunks for processing
+    GetChunks,
+    /// Flush remaining samples as a final chunk
+    FlushChunk,
+    /// Get full audio buffer for reconciliation
+    GetFullBuffer,
 }
 
 /// Responses from the audio thread
@@ -39,6 +49,12 @@ pub enum AudioResponse {
     Duration(f32),
     Level(f32),
     Error(String),
+    /// Audio chunks for streaming transcription
+    Chunks(Vec<crate::services::audio::AudioChunk>),
+    /// Single chunk (e.g., flushed remaining samples)
+    Chunk(Option<crate::services::audio::AudioChunk>),
+    /// Full audio buffer as samples
+    Samples(Vec<f32>),
 }
 
 /// Thread-safe handle to the audio capture thread
@@ -140,6 +156,48 @@ impl AudioState {
                             .map(|s| s.get_current_level())
                             .unwrap_or(0.0);
                         let _ = resp_tx.send(AudioResponse::Level(level));
+                    }
+                    Ok(AudioCommand::EnableStreaming) => {
+                        if let Some(ref mut svc) = service {
+                            svc.set_streaming_enabled(true);
+                        } else {
+                            // Initialize service if needed
+                            match AudioCaptureService::new() {
+                                Ok(mut svc) => {
+                                    svc.set_streaming_enabled(true);
+                                    service = Some(svc);
+                                }
+                                Err(e) => {
+                                    let _ = resp_tx.send(AudioResponse::Error(e.to_string()));
+                                    continue;
+                                }
+                            }
+                        }
+                        let _ = resp_tx.send(AudioResponse::Ok);
+                    }
+                    Ok(AudioCommand::DisableStreaming) => {
+                        if let Some(ref mut svc) = service {
+                            svc.set_streaming_enabled(false);
+                        }
+                        let _ = resp_tx.send(AudioResponse::Ok);
+                    }
+                    Ok(AudioCommand::GetChunks) => {
+                        let chunks = service
+                            .as_ref()
+                            .map(|s| s.get_pending_chunks())
+                            .unwrap_or_default();
+                        let _ = resp_tx.send(AudioResponse::Chunks(chunks));
+                    }
+                    Ok(AudioCommand::FlushChunk) => {
+                        let chunk = service.as_ref().and_then(|s| s.flush_remaining_chunk());
+                        let _ = resp_tx.send(AudioResponse::Chunk(chunk));
+                    }
+                    Ok(AudioCommand::GetFullBuffer) => {
+                        let samples = service
+                            .as_ref()
+                            .map(|s| s.get_full_chunked_buffer())
+                            .unwrap_or_default();
+                        let _ = resp_tx.send(AudioResponse::Samples(samples));
                     }
                     Ok(AudioCommand::Shutdown) => {
                         break;
