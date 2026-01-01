@@ -172,12 +172,15 @@ pub fn register_hotkey<R: Runtime>(
                     // Actually start recording
                     match audio_state.send_command(AudioCommand::Start) {
                         Ok(AudioResponse::Ok) => {
-                            tracing::info!("Recording started from hotkey");
+                            tracing::info!("[Hotkey] Recording started from hotkey");
                             // Start emitting audio levels
                             if let Err(e) = audio_state.start_level_emitter(app.clone()) {
-                                tracing::warn!("Failed to start level emitter: {}", e);
+                                tracing::warn!("[Hotkey] Failed to start level emitter: {}", e);
+                            } else {
+                                tracing::info!("[Hotkey] Level emitter started successfully");
                             }
                             // Emit event for tray update and UI
+                            tracing::info!("[Hotkey] Emitting hotkey://recording-started event");
                             let _ = app.emit("hotkey://recording-started", ());
                             let _ = app.emit("tray://update-recording-state", true);
                         }
@@ -359,34 +362,53 @@ async fn process_streaming_chunks<R: Runtime + 'static>(
     // Poll for chunks every 100ms while recording
     let poll_interval = Duration::from_millis(100);
     let mut chunks_processed = 0u32;
+    let mut poll_count = 0u32;
+    let mut empty_polls = 0u32;
+
+    tracing::info!("[StreamingChunks] Starting poll loop, model_id={}", model_id);
 
     while is_recording.load(Ordering::SeqCst) {
         // Sleep before checking to allow chunks to accumulate
         tokio::time::sleep(poll_interval).await;
+        poll_count += 1;
 
         // Get pending chunks from audio capture
         let chunks = match audio_state.send_command(AudioCommand::GetChunks) {
             Ok(AudioResponse::Chunks(c)) => c,
-            Ok(_) => continue,
+            Ok(resp) => {
+                tracing::warn!("[StreamingChunks] Unexpected response: {:?}", std::any::type_name_of_val(&resp));
+                continue;
+            }
             Err(e) => {
-                tracing::warn!("Failed to get audio chunks: {}", e);
+                tracing::warn!("[StreamingChunks] Failed to get audio chunks: {}", e);
                 continue;
             }
         };
 
         if chunks.is_empty() {
+            empty_polls += 1;
+            // Log periodically when no chunks available
+            if empty_polls % 20 == 0 {
+                tracing::debug!("[StreamingChunks] No chunks after {} polls ({} empty)", poll_count, empty_polls);
+            }
             continue;
         }
 
-        tracing::debug!("Processing {} audio chunks", chunks.len());
+        tracing::info!("[StreamingChunks] Got {} chunks to process (poll #{})", chunks.len(), poll_count);
 
         // Process each chunk through streaming service
         for chunk in chunks {
+            tracing::info!(
+                "[StreamingChunks] Processing chunk {} ({} samples, {:.2}s)",
+                chunk.chunk_index,
+                chunk.samples.len(),
+                chunk.duration_secs()
+            );
             match service.process_chunk(&app, &engine, &chunk, &model_id).await {
                 Ok(result) => {
                     chunks_processed += 1;
-                    tracing::debug!(
-                        "Processed chunk {}: '{}' ({} chars)",
+                    tracing::info!(
+                        "[StreamingChunks] Transcribed chunk {}: '{}' ({} chars)",
                         chunk.chunk_index,
                         result.text.chars().take(50).collect::<String>(),
                         result.text.len()
@@ -395,7 +417,11 @@ async fn process_streaming_chunks<R: Runtime + 'static>(
                 Err(e) => {
                     // Don't emit error for "already processed" - just skip
                     if !e.to_string().contains("already processed") {
-                        tracing::warn!("Failed to process chunk {}: {}", chunk.chunk_index, e);
+                        tracing::error!(
+                            "[StreamingChunks] Failed to transcribe chunk {}: {}",
+                            chunk.chunk_index,
+                            e
+                        );
                         service.emit_error(&app, &e.to_string(), Some(chunk.chunk_index));
                     }
                 }

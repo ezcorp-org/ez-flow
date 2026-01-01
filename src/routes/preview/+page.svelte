@@ -87,23 +87,28 @@
 	}
 
 	onMount(async () => {
+		console.log('[Preview] Component mounted');
 		const appWindow = getCurrentWindow();
 		await loadSettings();
+		console.log('[Preview] Settings loaded, streamingEnabled:', streamingEnabled);
 
 		// Check if recording is already active (in case we missed the event)
 		try {
 			const isRecording = await invoke<boolean>('is_recording');
+			console.log('[Preview] Recording check:', isRecording, 'streamingEnabled:', streamingEnabled);
 			if (isRecording && streamingEnabled) {
 				text = '';
 				previewState = 'streaming';
+				console.log('[Preview] Set initial state to streaming');
 			}
 		} catch (e) {
-			console.error('Failed to check recording state:', e);
+			console.error('[Preview] Failed to check recording state:', e);
 		}
 
 		// Listen for preview text events
 		unlisteners.push(
 			await listen<PreviewTextPayload>('preview://text', async (event) => {
+				console.log('[Preview] Received preview://text event:', event.payload);
 				const payload = event.payload;
 				text = payload.text;
 				previewState = payload.state;
@@ -126,6 +131,10 @@
 		unlisteners.push(
 			await listen<number>('recording:level', (event) => {
 				audioLevel = event.payload;
+				// Only log occasionally to avoid spam
+				if (Math.random() < 0.1) {
+					console.log('[Preview] Audio level:', event.payload);
+				}
 			})
 		);
 
@@ -142,7 +151,11 @@
 		// Listen for streaming partial transcription events
 		unlisteners.push(
 			await listen<PartialTranscriptionEvent>('transcription://partial', async (event) => {
-				if (!streamingEnabled) return;
+				console.log('[Preview] Received transcription://partial event:', event.payload);
+				if (!streamingEnabled) {
+					console.log('[Preview] Streaming disabled, ignoring partial event');
+					return;
+				}
 
 				const payload = event.payload;
 				text = payload.text;
@@ -157,6 +170,7 @@
 		// Listen for streaming final transcription events
 		unlisteners.push(
 			await listen<FinalTranscriptionEvent>('transcription://complete', async (event) => {
+				console.log('[Preview] Received transcription://complete event:', event.payload);
 				if (!streamingEnabled) return;
 
 				const payload = event.payload;
@@ -171,11 +185,13 @@
 		// Listen for recording started to show window in streaming mode
 		unlisteners.push(
 			await listen('hotkey://recording-started', async () => {
+				console.log('[Preview] Received hotkey://recording-started event, streamingEnabled:', streamingEnabled);
 				if (!streamingEnabled) return;
 
 				// Show window and set streaming state
 				text = '';
 				previewState = 'streaming';
+				console.log('[Preview] Setting state to streaming, showing window');
 				await appWindow.show();
 				cancelHide();
 			})

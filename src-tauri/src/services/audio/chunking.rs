@@ -209,13 +209,29 @@ impl ChunkedAudioBuffer {
     /// Samples are added to both the full buffer and pending chunk buffer.
     /// When enough samples accumulate, a new chunk is created.
     pub fn add_samples(&mut self, samples: &[f32]) {
+        // Track sample additions for debugging
+        static SAMPLE_ADD_COUNT: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+        let count = SAMPLE_ADD_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+
         // Add to pending samples (at input sample rate)
         self.pending_samples.extend_from_slice(samples);
 
+        // Log periodically
+        if count % 50 == 0 {
+            tracing::debug!(
+                "[Chunking] Added {} samples, pending={}/{} ({}%)",
+                samples.len(),
+                self.pending_samples.len(),
+                self.input_chunk_size,
+                (self.pending_samples.len() as f32 / self.input_chunk_size as f32 * 100.0) as u32
+            );
+        }
+
         // Check if we have enough for a new chunk (using input-rate chunk size)
         while self.pending_samples.len() >= self.input_chunk_size {
-            tracing::debug!(
-                "Creating chunk: pending={}, chunk_size={}, input_rate={}",
+            tracing::info!(
+                "[Chunking] Creating chunk #{}: pending={}, chunk_size={}, input_rate={}",
+                self.chunk_counter.load(std::sync::atomic::Ordering::SeqCst),
                 self.pending_samples.len(),
                 self.input_chunk_size,
                 self.input_sample_rate
@@ -320,7 +336,15 @@ impl ChunkedAudioBuffer {
 
     /// Get pending chunks that haven't been processed
     pub fn get_pending_chunks(&mut self) -> Vec<AudioChunk> {
-        self.chunks.drain(..).collect()
+        let chunks: Vec<AudioChunk> = self.chunks.drain(..).collect();
+        if !chunks.is_empty() {
+            tracing::info!(
+                "[Chunking] Returning {} pending chunks (indices: {:?})",
+                chunks.len(),
+                chunks.iter().map(|c| c.chunk_index).collect::<Vec<_>>()
+            );
+        }
+        chunks
     }
 
     /// Peek at pending chunks without removing them

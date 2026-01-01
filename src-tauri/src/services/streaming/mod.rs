@@ -224,11 +224,13 @@ impl StreamingTranscriptionService {
         };
 
         if let Err(e) = app.emit(EVENT_PARTIAL, &event) {
-            tracing::warn!("Failed to emit partial transcription event: {}", e);
+            tracing::warn!("[StreamingService] Failed to emit partial transcription event: {}", e);
         } else {
-            tracing::debug!(
-                "Emitted partial transcription for chunk {}: {} chars",
+            tracing::info!(
+                "[StreamingService] Emitted {} for chunk {}: '{}' ({} chars)",
+                EVENT_PARTIAL,
                 result.chunk_index,
+                event.text.chars().take(50).collect::<String>(),
                 event.text.len()
             );
         }
@@ -250,10 +252,12 @@ impl StreamingTranscriptionService {
         };
 
         if let Err(e) = app.emit(EVENT_COMPLETE, &event) {
-            tracing::warn!("Failed to emit final transcription event: {}", e);
+            tracing::warn!("[StreamingService] Failed to emit final transcription event: {}", e);
         } else {
             tracing::info!(
-                "Emitted final transcription: {} chars, {} chunks, reconciled: {}",
+                "[StreamingService] Emitted {}: '{}' ({} chars, {} chunks, reconciled: {})",
+                EVENT_COMPLETE,
+                text.chars().take(50).collect::<String>(),
                 text.len(),
                 event.total_chunks,
                 reconciled

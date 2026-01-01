@@ -207,6 +207,12 @@ impl AudioState {
                         if let Some(ref svc) = service {
                             if svc.is_recording() {
                                 let level = svc.get_current_level();
+                                // Debug: log level updates periodically
+                                static LEVEL_LOG_COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+                                let count = LEVEL_LOG_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                                if count % 20 == 0 {
+                                    tracing::debug!("[AudioThread] Updating level: {:.4}", level);
+                                }
                                 if let Ok(mut lvl) = shared_level.lock() {
                                     *lvl = level;
                                 }
@@ -263,6 +269,8 @@ impl AudioState {
         let current_level = self.current_level.clone();
 
         let handle = std::thread::spawn(move || {
+            tracing::info!("[LevelEmitter] Started");
+            let mut emit_count = 0u32;
             while running.load(Ordering::SeqCst) {
                 // Sleep for ~100ms between level updates
                 std::thread::sleep(Duration::from_millis(100));
@@ -274,11 +282,18 @@ impl AudioState {
                 // Get current level from shared state
                 let level = *current_level.lock().unwrap_or_else(|e| e.into_inner());
 
+                // Debug: log emitted levels periodically
+                emit_count += 1;
+                if emit_count % 10 == 0 {
+                    tracing::debug!("[LevelEmitter] Emitting level: {:.4} (count: {})", level, emit_count);
+                }
+
                 // Emit the level event
                 if let Err(e) = emit_audio_level(&app, level) {
-                    tracing::trace!("Failed to emit audio level: {}", e);
+                    tracing::warn!("[LevelEmitter] Failed to emit audio level: {}", e);
                 }
             }
+            tracing::info!("[LevelEmitter] Stopped after {} emissions", emit_count);
         });
 
         *self
