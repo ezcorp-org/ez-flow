@@ -7,6 +7,8 @@ const path = window.location.pathname;
 
 async function init() {
   const target = document.getElementById('app')!;
+  // Clear the loading placeholder before mounting
+  target.innerHTML = '';
 
   // Initialize tray event listeners for all windows (they share the same Tauri context)
   // Only initialize for main window to avoid duplicate handlers
