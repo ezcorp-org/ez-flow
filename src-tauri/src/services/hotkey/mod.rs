@@ -135,21 +135,12 @@ pub fn register_hotkey<R: Runtime>(
                         tracing::info!("Streaming mode enabled, setting up streaming transcription");
                         is_streaming_active.store(true, Ordering::SeqCst);
 
-                        // Show preview window for live transcription
+                        // Show preview window centered for live transcription
                         let settings = tauri::async_runtime::block_on(async {
                             settings_state.get().await
                         });
                         if settings.preview_enabled {
-                            // Position preview window
-                            if let Err(e) = preview::position_preview(
-                                app,
-                                settings.preview_position_x,
-                                settings.preview_position_y,
-                            ) {
-                                tracing::warn!("Failed to position preview window: {}", e);
-                            }
-                            // Show preview window
-                            if let Err(e) = preview::show_preview(app) {
+                            if let Err(e) = preview::show_preview_centered(app) {
                                 tracing::warn!("Failed to show preview window: {}", e);
                             }
                         }

@@ -3,7 +3,7 @@
 //! Handles the floating transcription preview window.
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Runtime, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 /// Preview text state
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,12 +44,61 @@ pub fn emit_preview_text<R: Runtime>(
     .map_err(|e| e.to_string())
 }
 
-/// Show the preview window
-pub fn show_preview<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+/// Get or create the preview window
+pub fn get_or_create_preview<R: Runtime>(app: &AppHandle<R>) -> Result<WebviewWindow<R>, String> {
     if let Some(window) = app.get_webview_window("preview") {
-        window.show().map_err(|e| e.to_string())?;
-        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(window);
     }
+
+    // Create the preview window if it doesn't exist
+    tracing::info!("Creating preview window");
+    let window = WebviewWindowBuilder::new(app, "preview", WebviewUrl::App("/preview".into()))
+        .title("Transcription Preview")
+        .inner_size(400.0, 200.0)
+        .resizable(false)
+        .decorations(false)
+        .always_on_top(true)
+        .transparent(true)
+        .skip_taskbar(true)
+        .visible(false)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    Ok(window)
+}
+
+/// Show the preview window (creates it if needed)
+pub fn show_preview<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let window = get_or_create_preview(app)?;
+    window.show().map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Show the preview window centered on screen
+pub fn show_preview_centered<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    let window = get_or_create_preview(app)?;
+
+    // Center on screen
+    if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
+        let screen_size = monitor.size();
+        let scale = monitor.scale_factor();
+        let window_width = 400.0 * scale;
+        let window_height = 200.0 * scale;
+
+        let x = (screen_size.width as f64 - window_width) / 2.0;
+        let y = (screen_size.height as f64 - window_height) / 2.0;
+
+        window
+            .set_position(PhysicalPosition::new(x as i32, y as i32))
+            .map_err(|e| e.to_string())?;
+    } else {
+        // Fallback: try to center using window.center()
+        window.center().map_err(|e| e.to_string())?;
+    }
+
+    window.show().map_err(|e| e.to_string())?;
+    window.set_focus().map_err(|e| e.to_string())?;
     Ok(())
 }
 

@@ -192,6 +192,20 @@ fn start_recording_from_tray(app: &AppHandle<tauri::Wry>) {
 
     // Get the AudioState from the app
     let audio_state = app.state::<AudioState>();
+    let settings_state = app.state::<SettingsState>();
+
+    // Check if streaming is enabled and show preview window
+    let settings = tauri::async_runtime::block_on(async { settings_state.get().await });
+    if settings.streaming_enabled && settings.preview_enabled {
+        if let Err(e) = crate::services::ui::preview::show_preview_centered(app) {
+            tracing::warn!("Failed to show preview window: {}", e);
+        }
+
+        // Enable streaming on audio capture
+        if let Err(e) = audio_state.send_command(AudioCommand::EnableStreaming) {
+            tracing::warn!("Failed to enable streaming: {:?}", e);
+        }
+    }
 
     // Start recording directly
     match audio_state.send_command(AudioCommand::Start) {
