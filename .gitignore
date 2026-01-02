@@ -64,3 +64,6 @@ playwright/.cache/
 
 # AI tooling
 .ai/
+
+# Auto Claude data directory
+.auto-claude/
