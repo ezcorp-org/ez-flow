@@ -141,7 +141,7 @@ impl Default for Settings {
             custom_vocabulary: Vec::new(),
             context_prompt: None,
             use_context_prompt: false,
-            preview_enabled: default_true(),
+            preview_enabled: false,
             preview_duration_secs: default_preview_duration(),
             preview_show_visualizer: default_true(),
             preview_position_x: None,
@@ -228,7 +228,7 @@ mod tests {
     #[test]
     fn test_preview_settings_default() {
         let settings = Settings::default();
-        assert!(settings.preview_enabled);
+        assert!(!settings.preview_enabled); // Disabled by default
         assert_eq!(settings.preview_duration_secs, 3);
         assert!(settings.preview_show_visualizer);
         assert!(settings.preview_position_x.is_none());
