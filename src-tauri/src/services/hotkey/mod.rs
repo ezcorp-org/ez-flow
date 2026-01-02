@@ -115,8 +115,10 @@ pub fn register_hotkey<R: Runtime>(
         .global_shortcut()
         .on_shortcut(shortcut, move |app, _shortcut, event| match event.state {
             ShortcutState::Pressed => {
+                println!("\n\n========== HOTKEY PRESSED ==========\n");
+                tracing::info!("========== HOTKEY PRESSED ==========");
                 if !is_recording.load(Ordering::SeqCst) {
-                    tracing::info!("Hotkey pressed - starting recording");
+                    tracing::info!("[Hotkey] Starting recording sequence...");
                     is_recording.store(true, Ordering::SeqCst);
                     // Store the start time
                     recording_start_time.store(current_time_ms(), Ordering::SeqCst);
