@@ -4,16 +4,14 @@ import { test, expect, describe } from 'bun:test';
  * Tests for AudioVisualizer component logic
  *
  * This component handles:
- * - Displaying audio level as vertical bars
- * - Calculating bar heights based on audio level
- * - Normalizing audio levels to 0-1 range
- * - Smooth transitions between levels
+ * - Displaying audio level as bouncing yellow dots
+ * - Creating a wave pattern based on audio level
+ * - Animating dots when audio is detected
  */
 
 // Constants from the component
-const BARS = 5;
-const BASE_HEIGHT = 4;
-const MAX_HEIGHT = 16;
+const DOT_COUNT = 7;
+const MAX_BOUNCE = 14;
 
 describe('AudioVisualizer component logic', () => {
 	describe('Props interface', () => {
@@ -52,70 +50,72 @@ describe('AudioVisualizer component logic', () => {
 		});
 	});
 
-	describe('getBarHeight function', () => {
-		const getBarHeight = (index: number, audioLevel: number): number => {
+	describe('getDotOffset function', () => {
+		const getDotOffset = (index: number, audioLevel: number, t: number): number => {
 			const normalized = Math.min(1, Math.max(0, audioLevel));
-			const baseHeight = BASE_HEIGHT;
-			const maxHeight = MAX_HEIGHT;
-			const threshold = (index + 1) / BARS;
-			return normalized >= threshold
-				? maxHeight
-				: baseHeight + (normalized / threshold) * (maxHeight - baseHeight);
+			if (normalized < 0.01) return 0;
+
+			// Create a wave pattern - center dots bounce higher
+			const centerDistance = Math.abs(index - (DOT_COUNT - 1) / 2);
+			const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
+
+			// Add phase offset for wave effect
+			const phase = t / 80 + index * 0.9;
+			const wave = Math.sin(phase) * 0.5 + 0.5;
+
+			return normalized * MAX_BOUNCE * centerWeight * wave;
 		};
 
-		test('should return base height when level is zero', () => {
-			for (let i = 0; i < BARS; i++) {
-				expect(getBarHeight(i, 0)).toBe(BASE_HEIGHT);
+		test('should return 0 when level is below threshold', () => {
+			for (let i = 0; i < DOT_COUNT; i++) {
+				expect(getDotOffset(i, 0, 0)).toBe(0);
+				expect(getDotOffset(i, 0.005, 0)).toBe(0);
 			}
 		});
 
-		test('should return max height when level is 1', () => {
-			for (let i = 0; i < BARS; i++) {
-				expect(getBarHeight(i, 1)).toBe(MAX_HEIGHT);
+		test('should return positive offset when level is above threshold', () => {
+			// With some time value and level above threshold
+			const offset = getDotOffset(3, 0.5, 100);
+			expect(offset).toBeGreaterThanOrEqual(0);
+		});
+
+		test('should weight center dots higher', () => {
+			const t = 0; // Fixed time for consistent comparison
+			const level = 1.0;
+
+			// Center dot (index 3) should have higher weight
+			const centerDot = getDotOffset(3, level, t);
+			const edgeDot = getDotOffset(0, level, t);
+
+			// Center weight is 1.0, edge weight is lower
+			// At t=0, sin(0)=0, so wave=0.5
+			// Center: 1.0 * 14 * 1.0 * 0.5 = 7
+			// Edge: 1.0 * 14 * 0.4 * 0.5 = 2.8 (approx)
+			expect(centerDot).toBeGreaterThan(edgeDot);
+		});
+
+		test('should scale with audio level', () => {
+			const t = 100;
+			const index = 3;
+
+			const lowOffset = getDotOffset(index, 0.2, t);
+			const highOffset = getDotOffset(index, 0.8, t);
+
+			expect(highOffset).toBeGreaterThan(lowOffset);
+		});
+
+		test('should produce wave pattern over time', () => {
+			const level = 0.5;
+			const index = 3;
+
+			const offsets: number[] = [];
+			for (let t = 0; t < 500; t += 50) {
+				offsets.push(getDotOffset(index, level, t));
 			}
-		});
 
-		test('should calculate height for first bar (index 0)', () => {
-			// First bar threshold is 1/5 = 0.2
-			expect(getBarHeight(0, 0)).toBe(BASE_HEIGHT);
-			expect(getBarHeight(0, 0.2)).toBe(MAX_HEIGHT);
-			expect(getBarHeight(0, 0.5)).toBe(MAX_HEIGHT);
-			expect(getBarHeight(0, 1.0)).toBe(MAX_HEIGHT);
-		});
-
-		test('should calculate height for last bar (index 4)', () => {
-			// Last bar threshold is 5/5 = 1.0
-			expect(getBarHeight(4, 0)).toBe(BASE_HEIGHT);
-			expect(getBarHeight(4, 0.5)).toBe(BASE_HEIGHT + 0.5 * (MAX_HEIGHT - BASE_HEIGHT));
-			expect(getBarHeight(4, 1.0)).toBe(MAX_HEIGHT);
-		});
-
-		test('should calculate progressive heights', () => {
-			const level = 0.6;
-			const heights = [];
-
-			for (let i = 0; i < BARS; i++) {
-				heights.push(getBarHeight(i, level));
-			}
-
-			// First few bars should be at max, later bars should be lower
-			expect(heights[0]).toBe(MAX_HEIGHT); // threshold 0.2
-			expect(heights[1]).toBe(MAX_HEIGHT); // threshold 0.4
-			expect(heights[2]).toBe(MAX_HEIGHT); // threshold 0.6
-			expect(heights[3]).toBeLessThan(MAX_HEIGHT); // threshold 0.8
-			expect(heights[4]).toBeLessThan(MAX_HEIGHT); // threshold 1.0
-		});
-
-		test('should return heights between base and max', () => {
-			const testLevels = [0.1, 0.3, 0.5, 0.7, 0.9];
-
-			for (const level of testLevels) {
-				for (let i = 0; i < BARS; i++) {
-					const height = getBarHeight(i, level);
-					expect(height).toBeGreaterThanOrEqual(BASE_HEIGHT);
-					expect(height).toBeLessThanOrEqual(MAX_HEIGHT);
-				}
-			}
+			// Should have variation (not all the same)
+			const uniqueValues = new Set(offsets.map((o) => o.toFixed(2)));
+			expect(uniqueValues.size).toBeGreaterThan(1);
 		});
 	});
 
@@ -145,250 +145,107 @@ describe('AudioVisualizer component logic', () => {
 		});
 	});
 
-	describe('Bar count configuration', () => {
-		test('should have 5 bars', () => {
-			expect(BARS).toBe(5);
+	describe('Dot count configuration', () => {
+		test('should have 7 dots', () => {
+			expect(DOT_COUNT).toBe(7);
 		});
 
-		test('should create correct number of bar indices', () => {
-			const barIndices = Array.from({ length: BARS }, (_, i) => i);
-			expect(barIndices).toEqual([0, 1, 2, 3, 4]);
-			expect(barIndices.length).toBe(5);
-		});
-	});
-
-	describe('Height constants', () => {
-		test('should have correct base height', () => {
-			expect(BASE_HEIGHT).toBe(4);
-		});
-
-		test('should have correct max height', () => {
-			expect(MAX_HEIGHT).toBe(16);
-		});
-
-		test('should have base height less than max height', () => {
-			expect(BASE_HEIGHT).toBeLessThan(MAX_HEIGHT);
+		test('should create correct number of dot indices', () => {
+			const dotIndices = Array.from({ length: DOT_COUNT }, (_, i) => i);
+			expect(dotIndices).toEqual([0, 1, 2, 3, 4, 5, 6]);
+			expect(dotIndices.length).toBe(7);
 		});
 	});
 
-	describe('Threshold calculations', () => {
-		test('should calculate thresholds correctly', () => {
-			const thresholds = [];
-			for (let i = 0; i < BARS; i++) {
-				thresholds.push((i + 1) / BARS);
-			}
-
-			expect(thresholds).toEqual([0.2, 0.4, 0.6, 0.8, 1.0]);
+	describe('Bounce constants', () => {
+		test('should have correct max bounce height', () => {
+			expect(MAX_BOUNCE).toBe(14);
 		});
+	});
 
-		test('should have evenly spaced thresholds', () => {
-			const thresholds = [];
-			for (let i = 0; i < BARS; i++) {
-				thresholds.push((i + 1) / BARS);
+	describe('Center weight calculations', () => {
+		test('should calculate center weights correctly', () => {
+			const weights: number[] = [];
+			for (let i = 0; i < DOT_COUNT; i++) {
+				const centerDistance = Math.abs(i - (DOT_COUNT - 1) / 2);
+				const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
+				weights.push(centerWeight);
 			}
 
-			for (let i = 1; i < thresholds.length; i++) {
-				const diff = thresholds[i] - thresholds[i - 1];
-				expect(diff).toBeCloseTo(0.2);
-			}
+			// Center dot (index 3) should have weight 1.0
+			expect(weights[3]).toBe(1.0);
+
+			// Edge dots should have lower weight
+			expect(weights[0]).toBeLessThan(weights[3]);
+			expect(weights[6]).toBeLessThan(weights[3]);
+
+			// Weights should be symmetric
+			expect(weights[0]).toBeCloseTo(weights[6]);
+			expect(weights[1]).toBeCloseTo(weights[5]);
+			expect(weights[2]).toBeCloseTo(weights[4]);
 		});
 	});
 
 	describe('Visual state patterns', () => {
-		const getBarHeight = (index: number, audioLevel: number): number => {
+		const getDotOffset = (index: number, audioLevel: number, t: number): number => {
 			const normalized = Math.min(1, Math.max(0, audioLevel));
-			const baseHeight = BASE_HEIGHT;
-			const maxHeight = MAX_HEIGHT;
-			const threshold = (index + 1) / BARS;
-			return normalized >= threshold
-				? maxHeight
-				: baseHeight + (normalized / threshold) * (maxHeight - baseHeight);
+			if (normalized < 0.01) return 0;
+
+			const centerDistance = Math.abs(index - (DOT_COUNT - 1) / 2);
+			const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
+			const phase = t / 80 + index * 0.9;
+			const wave = Math.sin(phase) * 0.5 + 0.5;
+
+			return normalized * MAX_BOUNCE * centerWeight * wave;
 		};
 
-		test('should show all bars at minimum when silent', () => {
-			const heights = [];
-			for (let i = 0; i < BARS; i++) {
-				heights.push(getBarHeight(i, 0));
+		test('should show all dots at zero offset when silent', () => {
+			const offsets: number[] = [];
+			for (let i = 0; i < DOT_COUNT; i++) {
+				offsets.push(getDotOffset(i, 0, 100));
 			}
 
-			const allMin = heights.every((h) => h === BASE_HEIGHT);
-			expect(allMin).toBe(true);
+			const allZero = offsets.every((o) => o === 0);
+			expect(allZero).toBe(true);
 		});
 
-		test('should show all bars at maximum when at full volume', () => {
-			const heights = [];
-			for (let i = 0; i < BARS; i++) {
-				heights.push(getBarHeight(i, 1));
+		test('should show wave pattern when audio is present', () => {
+			const offsets: number[] = [];
+			for (let i = 0; i < DOT_COUNT; i++) {
+				offsets.push(getDotOffset(i, 0.5, 100));
 			}
 
-			const allMax = heights.every((h) => h === MAX_HEIGHT);
-			expect(allMax).toBe(true);
+			// Should have some non-zero offsets
+			const hasNonZero = offsets.some((o) => o > 0);
+			expect(hasNonZero).toBe(true);
 		});
+	});
 
-		test('should show graduated pattern at medium levels', () => {
+	describe('Animation timing', () => {
+		test('should produce smooth wave motion', () => {
+			const getDotOffset = (index: number, audioLevel: number, t: number): number => {
+				const normalized = Math.min(1, Math.max(0, audioLevel));
+				if (normalized < 0.01) return 0;
+
+				const centerDistance = Math.abs(index - (DOT_COUNT - 1) / 2);
+				const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
+				const phase = t / 80 + index * 0.9;
+				const wave = Math.sin(phase) * 0.5 + 0.5;
+
+				return normalized * MAX_BOUNCE * centerWeight * wave;
+			};
+
 			const level = 0.5;
-			const heights = [];
-			for (let i = 0; i < BARS; i++) {
-				heights.push(getBarHeight(i, level));
-			}
+			const index = 3;
 
-			// First two bars (thresholds 0.2, 0.4) should be at max
-			expect(heights[0]).toBe(MAX_HEIGHT);
-			expect(heights[1]).toBe(MAX_HEIGHT);
-			// Third bar (threshold 0.6) should be less than max
-			expect(heights[2]).toBeLessThan(MAX_HEIGHT);
-		});
-	});
-
-	describe('Edge cases', () => {
-		const getBarHeight = (index: number, audioLevel: number): number => {
-			const normalized = Math.min(1, Math.max(0, audioLevel));
-			const baseHeight = BASE_HEIGHT;
-			const maxHeight = MAX_HEIGHT;
-			const threshold = (index + 1) / BARS;
-			return normalized >= threshold
-				? maxHeight
-				: baseHeight + (normalized / threshold) * (maxHeight - baseHeight);
-		};
-
-		test('should handle level exactly at threshold', () => {
-			// Bar 0 has threshold 0.2
-			expect(getBarHeight(0, 0.2)).toBe(MAX_HEIGHT);
-			// Bar 2 has threshold 0.6
-			expect(getBarHeight(2, 0.6)).toBe(MAX_HEIGHT);
-		});
-
-		test('should handle level just below threshold', () => {
-			// Bar 0 has threshold 0.2
-			const height = getBarHeight(0, 0.19);
-			expect(height).toBeLessThan(MAX_HEIGHT);
-			expect(height).toBeGreaterThan(BASE_HEIGHT);
-		});
-
-		test('should handle very small levels', () => {
-			const height = getBarHeight(0, 0.001);
-			expect(height).toBeGreaterThan(BASE_HEIGHT);
-			expect(height).toBeLessThan(MAX_HEIGHT);
-		});
-
-		test('should handle level of exactly 0', () => {
-			for (let i = 0; i < BARS; i++) {
-				expect(getBarHeight(i, 0)).toBe(BASE_HEIGHT);
-			}
-		});
-
-		test('should handle level of exactly 1', () => {
-			for (let i = 0; i < BARS; i++) {
-				expect(getBarHeight(i, 1)).toBe(MAX_HEIGHT);
-			}
-		});
-	});
-
-	describe('Height interpolation', () => {
-		const getBarHeight = (index: number, audioLevel: number): number => {
-			const normalized = Math.min(1, Math.max(0, audioLevel));
-			const baseHeight = BASE_HEIGHT;
-			const maxHeight = MAX_HEIGHT;
-			const threshold = (index + 1) / BARS;
-			return normalized >= threshold
-				? maxHeight
-				: baseHeight + (normalized / threshold) * (maxHeight - baseHeight);
-		};
-
-		test('should interpolate linearly between base and max', () => {
-			// For bar index 4, threshold is 1.0
-			// At level 0.5, the formula gives:
-			// baseHeight + (0.5 / 1.0) * (maxHeight - baseHeight)
-			// = 4 + 0.5 * (16 - 4) = 4 + 6 = 10
-			const height = getBarHeight(4, 0.5);
-			expect(height).toBe(10);
-		});
-
-		test('should show monotonically decreasing heights for later bars', () => {
-			const level = 0.5;
-			const heights = [];
-			for (let i = 0; i < BARS; i++) {
-				heights.push(getBarHeight(i, level));
-			}
-
-			// Heights should not increase as we go to later bars (higher thresholds)
-			for (let i = 1; i < heights.length; i++) {
-				expect(heights[i]).toBeLessThanOrEqual(heights[i - 1]);
-			}
-		});
-	});
-
-	describe('Multiple level simulations', () => {
-		const getBarHeight = (index: number, audioLevel: number): number => {
-			const normalized = Math.min(1, Math.max(0, audioLevel));
-			const baseHeight = BASE_HEIGHT;
-			const maxHeight = MAX_HEIGHT;
-			const threshold = (index + 1) / BARS;
-			return normalized >= threshold
-				? maxHeight
-				: baseHeight + (normalized / threshold) * (maxHeight - baseHeight);
-		};
-
-		test('should handle increasing audio levels', () => {
-			const levels = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
-			let previousTotalHeight = 0;
-
-			for (const level of levels) {
-				let totalHeight = 0;
-				for (let i = 0; i < BARS; i++) {
-					totalHeight += getBarHeight(i, level);
-				}
-
-				expect(totalHeight).toBeGreaterThanOrEqual(previousTotalHeight);
-				previousTotalHeight = totalHeight;
-			}
-		});
-
-		test('should handle decreasing audio levels', () => {
-			const levels = [1.0, 0.8, 0.6, 0.4, 0.2, 0];
-			let previousTotalHeight = BARS * MAX_HEIGHT + 1; // Start high
-
-			for (const level of levels) {
-				let totalHeight = 0;
-				for (let i = 0; i < BARS; i++) {
-					totalHeight += getBarHeight(i, level);
-				}
-
-				expect(totalHeight).toBeLessThanOrEqual(previousTotalHeight);
-				previousTotalHeight = totalHeight;
-			}
-		});
-	});
-
-	describe('Style generation', () => {
-		const getBarHeight = (index: number, audioLevel: number): number => {
-			const normalized = Math.min(1, Math.max(0, audioLevel));
-			const baseHeight = BASE_HEIGHT;
-			const maxHeight = MAX_HEIGHT;
-			const threshold = (index + 1) / BARS;
-			return normalized >= threshold
-				? maxHeight
-				: baseHeight + (normalized / threshold) * (maxHeight - baseHeight);
-		};
-
-		test('should generate valid CSS height values', () => {
-			for (let i = 0; i < BARS; i++) {
-				const height = getBarHeight(i, 0.5);
-				const cssValue = `height: ${height}px`;
-
-				expect(cssValue).toMatch(/^height: \d+(\.\d+)?px$/);
-			}
-		});
-
-		test('should generate pixel values in valid range', () => {
-			const levels = [0, 0.25, 0.5, 0.75, 1.0];
-
-			for (const level of levels) {
-				for (let i = 0; i < BARS; i++) {
-					const height = getBarHeight(i, level);
-					expect(height).toBeGreaterThanOrEqual(BASE_HEIGHT);
-					expect(height).toBeLessThanOrEqual(MAX_HEIGHT);
-				}
+			// Check that offsets change smoothly over time
+			let prevOffset = getDotOffset(index, level, 0);
+			for (let t = 10; t <= 200; t += 10) {
+				const offset = getDotOffset(index, level, t);
+				// Change should be gradual, not jumping too much
+				const delta = Math.abs(offset - prevOffset);
+				expect(delta).toBeLessThan(MAX_BOUNCE / 2);
+				prevOffset = offset;
 			}
 		});
 	});
