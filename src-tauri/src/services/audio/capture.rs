@@ -199,6 +199,10 @@ impl AudioCaptureService {
                         // Calculate level when we have enough samples
                         if lvl_buf.len() >= LEVEL_CALCULATION_SAMPLES {
                             let level = calculate_audio_level(&lvl_buf);
+                            // Log non-zero levels for debugging
+                            if level > 0.01 {
+                                tracing::debug!("[AudioCapture] Calculated level: {:.4} from {} samples", level, lvl_buf.len());
+                            }
                             if let Ok(mut lvl) = current_level.lock() {
                                 *lvl = level;
                             }
@@ -256,6 +260,10 @@ impl AudioCaptureService {
                             // Calculate level when we have enough samples
                             if lvl_buf.len() >= LEVEL_CALCULATION_SAMPLES {
                                 let level = calculate_audio_level(&lvl_buf);
+                                // Log non-zero levels for debugging
+                                if level > 0.01 {
+                                    tracing::debug!("[AudioCapture] Calculated level: {:.4} from {} samples (i16)", level, lvl_buf.len());
+                                }
                                 if let Ok(mut lvl) = current_level.lock() {
                                     *lvl = level;
                                 }
