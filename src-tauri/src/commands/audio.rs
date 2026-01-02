@@ -387,22 +387,9 @@ pub async fn check_microphone_permission() -> PermissionStatus {
 pub async fn start_recording(
     app: AppHandle,
     state: State<'_, AudioState>,
-    settings_state: State<'_, crate::services::storage::SettingsState>,
+    _settings_state: State<'_, crate::services::storage::SettingsState>,
 ) -> Result<(), String> {
     tracing::info!("Starting audio recording");
-
-    // Check if streaming is enabled and show preview window
-    let settings = settings_state.get().await;
-    if settings.streaming_enabled && settings.preview_enabled {
-        if let Err(e) = crate::services::ui::preview::show_preview_centered(&app) {
-            tracing::warn!("Failed to show preview window: {}", e);
-        }
-
-        // Enable streaming on audio capture
-        if let Err(e) = state.send_command(AudioCommand::EnableStreaming) {
-            tracing::warn!("Failed to enable streaming: {:?}", e);
-        }
-    }
 
     match state.send_command(AudioCommand::Start)? {
         AudioResponse::Ok => {

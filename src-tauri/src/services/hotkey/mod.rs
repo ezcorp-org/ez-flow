@@ -16,7 +16,6 @@ use crate::models::HistoryEntry;
 use crate::services::audio::processing::resample_for_whisper;
 use crate::services::storage::{DatabaseState, SettingsState};
 use crate::services::streaming::SharedStreamingService;
-use crate::services::ui::preview;
 use chrono::Utc;
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
@@ -132,26 +131,8 @@ pub fn register_hotkey<R: Runtime>(
 
                     // Enable streaming mode if configured
                     if streaming_enabled {
-                        tracing::info!("=== STREAMING MODE ENABLED ===");
-                        tracing::info!("Setting up streaming transcription...");
+                        tracing::info!("Streaming mode enabled");
                         is_streaming_active.store(true, Ordering::SeqCst);
-
-                        // Show preview window centered for live transcription
-                        let settings = tauri::async_runtime::block_on(async {
-                            settings_state.get().await
-                        });
-                        tracing::info!("Settings: preview_enabled={}, streaming_enabled={}",
-                            settings.preview_enabled, settings.streaming_enabled);
-
-                        if settings.preview_enabled {
-                            tracing::info!("Attempting to show preview window...");
-                            match preview::show_preview_centered(app) {
-                                Ok(_) => tracing::info!("=== PREVIEW WINDOW SHOWN ==="),
-                                Err(e) => tracing::error!("!!! FAILED to show preview window: {}", e),
-                            }
-                        } else {
-                            tracing::warn!("Preview window disabled in settings");
-                        }
 
                         // Enable streaming on audio capture
                         if let Err(e) = audio_state.send_command(AudioCommand::EnableStreaming) {
