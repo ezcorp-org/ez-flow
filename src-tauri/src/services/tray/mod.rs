@@ -314,7 +314,10 @@ fn stop_recording_from_tray(app: &AppHandle<tauri::Wry>) {
                     } else {
                         tracing::debug!("Saved transcription to history");
                         // Emit event to refresh history UI
-                        let _ = app_handle.emit("history://new-entry", ());
+                        match app_handle.emit("history://new-entry", ()) {
+                            Ok(_) => tracing::debug!("Emitted history://new-entry event"),
+                            Err(e) => tracing::error!("Failed to emit history://new-entry: {}", e),
+                        }
                     }
                 }
 
@@ -402,7 +405,10 @@ fn transcribe_file_from_tray(app: &AppHandle<tauri::Wry>) {
                                     } else {
                                         tracing::debug!("Saved transcription to history");
                                         // Emit event to refresh history UI
-                                        let _ = app_for_emit.emit("history://new-entry", ());
+                                        match app_for_emit.emit("history://new-entry", ()) {
+                                            Ok(_) => tracing::debug!("Emitted history://new-entry event"),
+                                            Err(e) => tracing::error!("Failed to emit history://new-entry: {}", e),
+                                        }
                                     }
                                 }
 

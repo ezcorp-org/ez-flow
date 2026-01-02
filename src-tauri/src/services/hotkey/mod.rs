@@ -565,7 +565,11 @@ fn handle_streaming_completion<R: Runtime + 'static>(app: AppHandle<R>) {
             if let Err(e) = db.insert_history(&entry).await {
                 tracing::error!("Failed to save transcription to history: {}", e);
             } else {
-                let _ = app.emit("history://new-entry", ());
+                tracing::debug!("Saved transcription to history");
+                match app.emit("history://new-entry", ()) {
+                    Ok(_) => tracing::debug!("Emitted history://new-entry event"),
+                    Err(e) => tracing::error!("Failed to emit history://new-entry: {}", e),
+                }
             }
         }
 
@@ -653,8 +657,12 @@ fn handle_batch_transcription<R: Runtime + 'static>(app: AppHandle<R>) {
                     if let Err(e) = db.insert_history(&entry).await {
                         tracing::error!("Failed to save transcription to history: {}", e);
                     } else {
+                        tracing::debug!("Saved transcription to history");
                         // Emit event to refresh history UI
-                        let _ = app.emit("history://new-entry", ());
+                        match app.emit("history://new-entry", ()) {
+                            Ok(_) => tracing::debug!("Emitted history://new-entry event"),
+                            Err(e) => tracing::error!("Failed to emit history://new-entry: {}", e),
+                        }
                     }
                 }
 

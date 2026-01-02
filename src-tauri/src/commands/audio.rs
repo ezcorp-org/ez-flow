@@ -561,7 +561,10 @@ pub async fn stop_recording_and_transcribe(
         } else {
             tracing::debug!("Saved transcription to history");
             // Emit event to refresh history UI
-            let _ = app.emit("history://new-entry", ());
+            match app.emit("history://new-entry", ()) {
+                Ok(_) => tracing::debug!("Emitted history://new-entry event"),
+                Err(e) => tracing::error!("Failed to emit history://new-entry: {}", e),
+            }
         }
     }
 

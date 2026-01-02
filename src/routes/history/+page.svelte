@@ -30,6 +30,7 @@
 		// Listen for new history entries (covers all transcription sources)
 		unlisteners.push(
 			await listen('history://new-entry', async () => {
+				console.log('[History] Received history://new-entry event, refreshing...');
 				await loadHistory();
 			})
 		);

@@ -32,6 +32,7 @@
 		// Listen for new history entries
 		unlisteners.push(
 			await listen('history://new-entry', async () => {
+				console.log('[HistoryList] Received history://new-entry event, refreshing...');
 				await loadHistory();
 			})
 		);
