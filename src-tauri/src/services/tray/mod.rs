@@ -204,8 +204,9 @@ fn start_recording_from_tray(app: &AppHandle<tauri::Wry>) {
                 tracing::warn!("Failed to start level emitter: {}", e);
             }
 
-            // Emit event so UI can update (e.g., show indicator)
+            // Emit events so UI can update (e.g., show indicator)
             let _ = app.emit("tray://recording-started", ());
+            let _ = app.emit("workflow://state-changed", "recording");
         }
         Ok(AudioResponse::Error(e)) => {
             tracing::error!("Failed to start recording from tray: {}", e);

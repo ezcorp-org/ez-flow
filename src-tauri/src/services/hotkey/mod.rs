@@ -170,10 +170,11 @@ pub fn register_hotkey<R: Runtime>(
                             } else {
                                 tracing::info!("[Hotkey] Level emitter started successfully");
                             }
-                            // Emit event for tray update and UI
-                            tracing::info!("[Hotkey] Emitting hotkey://recording-started event");
+                            // Emit events for tray update and UI
+                            tracing::info!("[Hotkey] Emitting recording events");
                             let _ = app.emit("hotkey://recording-started", ());
                             let _ = app.emit("tray://update-recording-state", true);
+                            let _ = app.emit("workflow://state-changed", "recording");
                         }
                         Ok(AudioResponse::Error(e)) => {
                             tracing::error!("Failed to start recording from hotkey: {}", e);
