@@ -215,8 +215,9 @@ impl AudioState {
                                 // Debug: log level updates periodically
                                 static LEVEL_LOG_COUNTER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
                                 let count = LEVEL_LOG_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-                                if count % 20 == 0 {
-                                    tracing::debug!("[AudioThread] Updating level: {:.4}", level);
+                                // Log more frequently for debugging (every 10 updates = ~0.5s)
+                                if count % 10 == 0 || level > 0.01 {
+                                    tracing::info!("[AudioThread] Level update #{}: {:.4}", count, level);
                                 }
                                 if let Ok(mut lvl) = shared_level.lock() {
                                     *lvl = level;
@@ -289,8 +290,9 @@ impl AudioState {
 
                 // Debug: log emitted levels periodically
                 emit_count += 1;
-                if emit_count % 10 == 0 {
-                    tracing::debug!("[LevelEmitter] Emitting level: {:.4} (count: {})", level, emit_count);
+                // Log more frequently for debugging
+                if emit_count % 5 == 0 || level > 0.01 {
+                    tracing::info!("[LevelEmitter] Emitting level: {:.4} (count: {})", level, emit_count);
                 }
 
                 // Emit the level event

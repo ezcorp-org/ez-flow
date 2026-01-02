@@ -23,6 +23,9 @@
 		unlisteners.push(
 			await listen<number>('recording:level', (event) => {
 				audioLevel = event.payload;
+				if (event.payload > 0) {
+					console.log('[RecordButton] Received audio level:', event.payload.toFixed(3));
+				}
 			})
 		);
 

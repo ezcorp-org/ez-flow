@@ -8,8 +8,20 @@
 	let { level = 0 }: Props = $props();
 
 	const dotCount = 7;
+	const maxBounce = 14;
 	let animationFrame: number | null = null;
-	let time = $state(0);
+	let dotOffsets = $state<number[]>(Array(dotCount).fill(0));
+	let frameCount = 0;
+
+	// Store the current level in a mutable variable that the animation can read
+	// This ensures we always have the latest value even outside reactive context
+	let currentAudioLevel = 0;
+
+	// Sync the prop to our mutable variable
+	$effect(() => {
+		currentAudioLevel = level;
+		console.log('[AudioVisualizer] Level prop updated:', level.toFixed(4));
+	});
 
 	// Create varied bounce offsets for each dot based on position and audio level
 	function getDotOffset(index: number, audioLevel: number, t: number): number {
@@ -24,30 +36,40 @@
 		const phase = t / 80 + index * 0.9;
 		const wave = Math.sin(phase) * 0.5 + 0.5;
 
-		const maxBounce = 14;
 		return normalized * maxBounce * centerWeight * wave;
 	}
 
-	// Reactively compute dot positions
-	let dotOffsets = $derived(
-		Array.from({ length: dotCount }, (_, i) => getDotOffset(i, level, time))
-	);
-
-	// Animation loop
+	// Animation loop - updates dotOffsets directly
 	function animate() {
-		time = performance.now();
+		const t = performance.now();
+		// Read from our mutable variable instead of the prop directly
+		const lvl = currentAudioLevel;
+		dotOffsets = Array.from({ length: dotCount }, (_, i) => getDotOffset(i, lvl, t));
+
+		// Log every 30 frames (~0.5s at 60fps)
+		frameCount++;
+		if (frameCount % 30 === 0) {
+			console.log('[AudioVisualizer] animate frame:', frameCount, 'level:', lvl.toFixed(4), 'offsets:', dotOffsets.map(o => o.toFixed(1)).join(','));
+		}
+
 		animationFrame = requestAnimationFrame(animate);
 	}
 
 	$effect(() => {
+		console.log('[AudioVisualizer] Animation control effect, level:', level.toFixed(4), 'animationFrame:', animationFrame);
 		if (level > 0.01) {
 			if (!animationFrame) {
+				console.log('[AudioVisualizer] Starting animation, level:', level.toFixed(4));
+				frameCount = 0;
 				animate();
 			}
 		} else {
 			if (animationFrame) {
+				console.log('[AudioVisualizer] Stopping animation, level:', level.toFixed(4));
 				cancelAnimationFrame(animationFrame);
 				animationFrame = null;
+				// Reset to zero
+				dotOffsets = Array(dotCount).fill(0);
 			}
 		}
 	});
@@ -60,7 +82,7 @@
 </script>
 
 <div class="waveform-container" data-testid="audio-visualizer">
-	{#each dotOffsets as offset, i}
+	{#each dotOffsets as offset}
 		<div
 			class="dot"
 			style="transform: translateY({-offset}px)"
