@@ -159,12 +159,14 @@ pub fn register_hotkey<R: Runtime>(
                     }
 
                     // Actually start recording
+                    tracing::info!("[Hotkey] About to send AudioCommand::Start");
                     match audio_state.send_command(AudioCommand::Start) {
                         Ok(AudioResponse::Ok) => {
-                            tracing::info!("[Hotkey] Recording started from hotkey");
+                            tracing::info!("[Hotkey] Recording started successfully from hotkey");
                             // Start emitting audio levels
+                            tracing::info!("[Hotkey] Starting level emitter...");
                             if let Err(e) = audio_state.start_level_emitter(app.clone()) {
-                                tracing::warn!("[Hotkey] Failed to start level emitter: {}", e);
+                                tracing::error!("[Hotkey] Failed to start level emitter: {}", e);
                             } else {
                                 tracing::info!("[Hotkey] Level emitter started successfully");
                             }

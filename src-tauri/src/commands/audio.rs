@@ -265,17 +265,23 @@ impl AudioState {
         &self,
         app: AppHandle<R>,
     ) -> Result<(), String> {
+        tracing::info!("[LevelEmitter] start_level_emitter called");
+
         // Stop any existing emitter
         self.stop_level_emitter();
 
-        self.ensure_initialized()?;
+        if let Err(e) = self.ensure_initialized() {
+            tracing::error!("[LevelEmitter] Failed to ensure_initialized: {}", e);
+            return Err(e);
+        }
+        tracing::info!("[LevelEmitter] Audio state initialized, starting emitter thread");
         self.level_emitter_running.store(true, Ordering::SeqCst);
 
         let running = self.level_emitter_running.clone();
         let current_level = self.current_level.clone();
 
         let handle = std::thread::spawn(move || {
-            tracing::info!("[LevelEmitter] Started");
+            tracing::info!("[LevelEmitter] Thread started");
             let mut emit_count = 0u32;
             while running.load(Ordering::SeqCst) {
                 // Sleep for ~100ms between level updates
