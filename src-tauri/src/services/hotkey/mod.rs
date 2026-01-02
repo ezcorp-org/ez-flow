@@ -373,7 +373,9 @@ async fn process_streaming_chunks<R: Runtime + 'static>(
     let mut poll_count = 0u32;
     let mut empty_polls = 0u32;
 
-    tracing::info!("[StreamingChunks] Starting poll loop, model_id={}", model_id);
+    tracing::info!("=== [StreamingChunks] Starting poll loop ===");
+    tracing::info!("[StreamingChunks] model_id={}", model_id);
+    tracing::info!("[StreamingChunks] service.is_active={}", service.is_active());
 
     while is_recording.load(Ordering::SeqCst) {
         // Sleep before checking to allow chunks to accumulate

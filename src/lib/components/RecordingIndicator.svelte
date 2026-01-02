@@ -1,14 +1,16 @@
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import AudioVisualizer from './AudioVisualizer.svelte';
+	import { X } from '@lucide/svelte';
 
 	interface Props {
 		isRecording?: boolean;
 		isTranscribing?: boolean;
 		audioLevel?: number;
+		onClose?: () => void;
 	}
 
-	let { isRecording = false, isTranscribing = false, audioLevel = 0 }: Props = $props();
+	let { isRecording = false, isTranscribing = false, audioLevel = 0, onClose }: Props = $props();
 
 	let elapsed = $state(0);
 	let interval: ReturnType<typeof setInterval> | undefined;
@@ -51,12 +53,29 @@
 			>{formatTime(elapsed)}</span
 		>
 	{/if}
+	{#if onClose}
+		<button
+			onclick={(e) => { e.stopPropagation(); onClose(); }}
+			class="close-button p-1 rounded hover:bg-neutral-700 text-neutral-400 hover:text-white transition-colors ml-1"
+			data-testid="close-button"
+			aria-label="Close"
+			type="button"
+		>
+			<X size={14} />
+		</button>
+	{/if}
 </div>
 
 <style>
 	.recording-indicator {
 		-webkit-app-region: drag;
 		user-select: none;
+	}
+
+	.close-button {
+		-webkit-app-region: no-drag;
+		cursor: pointer;
+		pointer-events: auto;
 	}
 
 	@keyframes pulse {

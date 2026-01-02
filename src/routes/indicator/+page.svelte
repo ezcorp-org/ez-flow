@@ -57,6 +57,11 @@
 	onDestroy(() => {
 		unlisteners.forEach((unlisten) => unlisten());
 	});
+
+	async function handleClose() {
+		const appWindow = getCurrentWindow();
+		await appWindow.hide();
+	}
 </script>
 
 <svelte:head>
@@ -72,7 +77,7 @@
 
 <div class="indicator-container">
 	{#if isRecording || isTranscribing}
-		<RecordingIndicator {isRecording} {isTranscribing} {audioLevel} />
+		<RecordingIndicator {isRecording} {isTranscribing} {audioLevel} onClose={handleClose} />
 	{/if}
 </div>
 

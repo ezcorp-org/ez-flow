@@ -158,16 +158,21 @@ impl AudioState {
                         let _ = resp_tx.send(AudioResponse::Level(level));
                     }
                     Ok(AudioCommand::EnableStreaming) => {
+                        tracing::info!("=== [Audio] EnableStreaming command received ===");
                         if let Some(ref mut svc) = service {
+                            tracing::info!("[Audio] Enabling streaming on existing service");
                             svc.set_streaming_enabled(true);
                         } else {
                             // Initialize service if needed
+                            tracing::info!("[Audio] Creating new service for streaming");
                             match AudioCaptureService::new() {
                                 Ok(mut svc) => {
                                     svc.set_streaming_enabled(true);
                                     service = Some(svc);
+                                    tracing::info!("[Audio] Service created and streaming enabled");
                                 }
                                 Err(e) => {
+                                    tracing::error!("[Audio] Failed to create service: {}", e);
                                     let _ = resp_tx.send(AudioResponse::Error(e.to_string()));
                                     continue;
                                 }
