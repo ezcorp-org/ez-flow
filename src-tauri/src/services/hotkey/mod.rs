@@ -132,17 +132,25 @@ pub fn register_hotkey<R: Runtime>(
 
                     // Enable streaming mode if configured
                     if streaming_enabled {
-                        tracing::info!("Streaming mode enabled, setting up streaming transcription");
+                        tracing::info!("=== STREAMING MODE ENABLED ===");
+                        tracing::info!("Setting up streaming transcription...");
                         is_streaming_active.store(true, Ordering::SeqCst);
 
                         // Show preview window centered for live transcription
                         let settings = tauri::async_runtime::block_on(async {
                             settings_state.get().await
                         });
+                        tracing::info!("Settings: preview_enabled={}, streaming_enabled={}",
+                            settings.preview_enabled, settings.streaming_enabled);
+
                         if settings.preview_enabled {
-                            if let Err(e) = preview::show_preview_centered(app) {
-                                tracing::warn!("Failed to show preview window: {}", e);
+                            tracing::info!("Attempting to show preview window...");
+                            match preview::show_preview_centered(app) {
+                                Ok(_) => tracing::info!("=== PREVIEW WINDOW SHOWN ==="),
+                                Err(e) => tracing::error!("!!! FAILED to show preview window: {}", e),
                             }
+                        } else {
+                            tracing::warn!("Preview window disabled in settings");
                         }
 
                         // Enable streaming on audio capture

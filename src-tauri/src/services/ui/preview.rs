@@ -76,7 +76,9 @@ pub fn show_preview<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
 
 /// Show the preview window centered on screen
 pub fn show_preview_centered<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
+    tracing::info!("[Preview] show_preview_centered called");
     let window = get_or_create_preview(app)?;
+    tracing::info!("[Preview] Got window handle");
 
     // Center on screen
     if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
@@ -93,11 +95,15 @@ pub fn show_preview_centered<R: Runtime>(app: &AppHandle<R>) -> Result<(), Strin
             .map_err(|e| e.to_string())?;
     } else {
         // Fallback: try to center using window.center()
+        tracing::info!("[Preview] Using window.center() fallback");
         window.center().map_err(|e| e.to_string())?;
     }
 
+    tracing::info!("[Preview] Calling window.show()...");
     window.show().map_err(|e| e.to_string())?;
+    tracing::info!("[Preview] Window shown successfully");
     window.set_focus().map_err(|e| e.to_string())?;
+    tracing::info!("[Preview] Window focused successfully");
     Ok(())
 }
 
