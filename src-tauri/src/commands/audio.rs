@@ -565,3 +565,30 @@ pub async fn stop_recording_and_transcribe(
 
     Ok(result)
 }
+
+/// Test command to emit fake audio levels for debugging
+/// This helps verify the frontend audio visualization is working
+#[tauri::command]
+pub async fn test_audio_levels(app: AppHandle) -> Result<(), String> {
+    tracing::info!("[TestAudioLevels] Starting fake audio level emission");
+
+    // Spawn a task to emit fake levels for 5 seconds
+    tauri::async_runtime::spawn(async move {
+        for i in 0..50 {
+            // Generate a sine wave pattern for realistic-looking levels
+            let t = i as f32 * 0.1;
+            let level = (t.sin() * 0.3 + 0.4).max(0.1).min(1.0);
+
+            if let Err(e) = emit_audio_level(&app, level) {
+                tracing::error!("[TestAudioLevels] Failed to emit: {}", e);
+            } else {
+                tracing::info!("[TestAudioLevels] Emitted level: {:.3}", level);
+            }
+
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+        tracing::info!("[TestAudioLevels] Done emitting fake levels");
+    });
+
+    Ok(())
+}

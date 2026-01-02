@@ -90,6 +90,7 @@ pub fn run() {
             commands::audio::check_microphone_permission,
             commands::audio::is_recording,
             commands::audio::get_recording_duration,
+            commands::audio::test_audio_levels,
             // Transcription commands
             commands::transcription::load_whisper_model,
             commands::transcription::load_whisper_model_from_path,
