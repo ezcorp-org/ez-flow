@@ -287,7 +287,7 @@ impl AudioCaptureService {
         self.recording_start = Some(Instant::now());
         self.stream = Some(stream);
 
-        tracing::info!("Recording started");
+        tracing::info!("[AudioCapture] Recording started, sample_rate={}, channels={}", self.sample_rate(), self.channels);
         Ok(())
     }
 

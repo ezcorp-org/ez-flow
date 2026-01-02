@@ -8,6 +8,9 @@ pub mod capture;
 pub mod chunking;
 pub mod processing;
 
+#[cfg(test)]
+mod level_test;
+
 /// Supported audio file extensions for transcription
 pub const SUPPORTED_AUDIO_EXTENSIONS: &[&str] = &["wav", "mp3", "m4a", "ogg", "flac"];
 
