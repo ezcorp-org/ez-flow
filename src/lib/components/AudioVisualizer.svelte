@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 
 	interface Props {
 		level?: number;
@@ -8,75 +8,54 @@
 	let { level = 0 }: Props = $props();
 
 	const dotCount = 7;
-	const maxBounce = 14;
+	const maxBounce = 12;
+	const minBounce = 3; // Minimum bounce even without audio
 	let animationFrame: number | null = null;
 	let dotOffsets = $state<number[]>(Array(dotCount).fill(0));
-	let frameCount = 0;
 
-	// Store the current level in a mutable variable that the animation can read
-	// This ensures we always have the latest value even outside reactive context
+	// Store the current level in a mutable variable for animation loop
 	let currentAudioLevel = 0;
 
 	// Sync the prop to our mutable variable
 	$effect(() => {
 		currentAudioLevel = level;
-		console.log('[AudioVisualizer] Level prop updated:', level.toFixed(4));
 	});
 
-	// Create varied bounce offsets for each dot based on position and audio level
+	// Create varied bounce offsets for each dot
 	function getDotOffset(index: number, audioLevel: number, t: number): number {
-		const normalized = Math.min(1, Math.max(0, audioLevel));
-		if (normalized < 0.01) return 0;
-
 		// Create a wave pattern - center dots bounce higher
 		const centerDistance = Math.abs(index - (dotCount - 1) / 2);
-		const centerWeight = 1 - centerDistance / ((dotCount - 1) / 2) * 0.6;
+		const centerWeight = 1 - (centerDistance / ((dotCount - 1) / 2)) * 0.5;
 
-		// Add phase offset for wave effect - each dot has different phase
-		const phase = t / 80 + index * 0.9;
+		// Phase offset for wave effect - each dot has different phase
+		const phase = t / 150 + index * 0.8;
 		const wave = Math.sin(phase) * 0.5 + 0.5;
 
-		return normalized * maxBounce * centerWeight * wave;
+		// Base animation + audio-responsive boost
+		const normalized = Math.min(1, Math.max(0, audioLevel));
+		const baseBounce = minBounce * centerWeight * wave;
+		const audioBounce = normalized * (maxBounce - minBounce) * centerWeight * wave;
+
+		return baseBounce + audioBounce;
 	}
 
-	// Animation loop - updates dotOffsets directly
+	// Animation loop - always running when component is mounted
 	function animate() {
 		const t = performance.now();
-		// Read from our mutable variable instead of the prop directly
 		const lvl = currentAudioLevel;
 		dotOffsets = Array.from({ length: dotCount }, (_, i) => getDotOffset(i, lvl, t));
-
-		// Log every 30 frames (~0.5s at 60fps)
-		frameCount++;
-		if (frameCount % 30 === 0) {
-			console.log('[AudioVisualizer] animate frame:', frameCount, 'level:', lvl.toFixed(4), 'offsets:', dotOffsets.map(o => o.toFixed(1)).join(','));
-		}
-
 		animationFrame = requestAnimationFrame(animate);
 	}
 
-	$effect(() => {
-		console.log('[AudioVisualizer] Animation control effect, level:', level.toFixed(4), 'animationFrame:', animationFrame);
-		if (level > 0.01) {
-			if (!animationFrame) {
-				console.log('[AudioVisualizer] Starting animation, level:', level.toFixed(4));
-				frameCount = 0;
-				animate();
-			}
-		} else {
-			if (animationFrame) {
-				console.log('[AudioVisualizer] Stopping animation, level:', level.toFixed(4));
-				cancelAnimationFrame(animationFrame);
-				animationFrame = null;
-				// Reset to zero
-				dotOffsets = Array(dotCount).fill(0);
-			}
-		}
+	onMount(() => {
+		// Start animation immediately when component mounts
+		animate();
 	});
 
 	onDestroy(() => {
 		if (animationFrame) {
 			cancelAnimationFrame(animationFrame);
+			animationFrame = null;
 		}
 	});
 </script>

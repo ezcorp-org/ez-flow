@@ -5,13 +5,14 @@ import { test, expect, describe } from 'bun:test';
  *
  * This component handles:
  * - Displaying audio level as bouncing yellow dots
- * - Creating a wave pattern based on audio level
- * - Animating dots when audio is detected
+ * - Creating a wave pattern with base animation
+ * - Audio levels add extra bounce on top of base animation
  */
 
 // Constants from the component
 const DOT_COUNT = 7;
-const MAX_BOUNCE = 14;
+const MAX_BOUNCE = 12;
+const MIN_BOUNCE = 3;
 
 describe('AudioVisualizer component logic', () => {
 	describe('Props interface', () => {
@@ -52,45 +53,45 @@ describe('AudioVisualizer component logic', () => {
 
 	describe('getDotOffset function', () => {
 		const getDotOffset = (index: number, audioLevel: number, t: number): number => {
-			const normalized = Math.min(1, Math.max(0, audioLevel));
-			if (normalized < 0.01) return 0;
-
 			// Create a wave pattern - center dots bounce higher
 			const centerDistance = Math.abs(index - (DOT_COUNT - 1) / 2);
-			const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
+			const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.5;
 
-			// Add phase offset for wave effect
-			const phase = t / 80 + index * 0.9;
+			// Phase offset for wave effect - each dot has different phase
+			const phase = t / 150 + index * 0.8;
 			const wave = Math.sin(phase) * 0.5 + 0.5;
 
-			return normalized * MAX_BOUNCE * centerWeight * wave;
+			// Base animation + audio-responsive boost
+			const normalized = Math.min(1, Math.max(0, audioLevel));
+			const baseBounce = MIN_BOUNCE * centerWeight * wave;
+			const audioBounce = normalized * (MAX_BOUNCE - MIN_BOUNCE) * centerWeight * wave;
+
+			return baseBounce + audioBounce;
 		};
 
-		test('should return 0 when level is below threshold', () => {
-			for (let i = 0; i < DOT_COUNT; i++) {
-				expect(getDotOffset(i, 0, 0)).toBe(0);
-				expect(getDotOffset(i, 0.005, 0)).toBe(0);
-			}
+		test('should return base bounce when level is zero', () => {
+			// With t=0, sin(0)=0, wave=0.5
+			// Center dot: MIN_BOUNCE * 1.0 * 0.5 = 1.5
+			const offset = getDotOffset(3, 0, 0);
+			expect(offset).toBeGreaterThan(0);
+			expect(offset).toBeLessThanOrEqual(MIN_BOUNCE);
 		});
 
-		test('should return positive offset when level is above threshold', () => {
-			// With some time value and level above threshold
-			const offset = getDotOffset(3, 0.5, 100);
-			expect(offset).toBeGreaterThanOrEqual(0);
+		test('should return higher offset when level is present', () => {
+			const t = 100;
+			const baseOffset = getDotOffset(3, 0, t);
+			const withAudioOffset = getDotOffset(3, 0.5, t);
+			expect(withAudioOffset).toBeGreaterThan(baseOffset);
 		});
 
 		test('should weight center dots higher', () => {
-			const t = 0; // Fixed time for consistent comparison
-			const level = 1.0;
+			const t = 100;
+			const level = 0.5;
 
 			// Center dot (index 3) should have higher weight
 			const centerDot = getDotOffset(3, level, t);
 			const edgeDot = getDotOffset(0, level, t);
 
-			// Center weight is 1.0, edge weight is lower
-			// At t=0, sin(0)=0, so wave=0.5
-			// Center: 1.0 * 14 * 1.0 * 0.5 = 7
-			// Edge: 1.0 * 14 * 0.4 * 0.5 = 2.8 (approx)
 			expect(centerDot).toBeGreaterThan(edgeDot);
 		});
 
@@ -109,7 +110,7 @@ describe('AudioVisualizer component logic', () => {
 			const index = 3;
 
 			const offsets: number[] = [];
-			for (let t = 0; t < 500; t += 50) {
+			for (let t = 0; t < 1000; t += 100) {
 				offsets.push(getDotOffset(index, level, t));
 			}
 
@@ -159,7 +160,15 @@ describe('AudioVisualizer component logic', () => {
 
 	describe('Bounce constants', () => {
 		test('should have correct max bounce height', () => {
-			expect(MAX_BOUNCE).toBe(14);
+			expect(MAX_BOUNCE).toBe(12);
+		});
+
+		test('should have correct min bounce height', () => {
+			expect(MIN_BOUNCE).toBe(3);
+		});
+
+		test('min bounce should be less than max bounce', () => {
+			expect(MIN_BOUNCE).toBeLessThan(MAX_BOUNCE);
 		});
 	});
 
@@ -168,7 +177,7 @@ describe('AudioVisualizer component logic', () => {
 			const weights: number[] = [];
 			for (let i = 0; i < DOT_COUNT; i++) {
 				const centerDistance = Math.abs(i - (DOT_COUNT - 1) / 2);
-				const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
+				const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.5;
 				weights.push(centerWeight);
 			}
 
@@ -188,51 +197,57 @@ describe('AudioVisualizer component logic', () => {
 
 	describe('Visual state patterns', () => {
 		const getDotOffset = (index: number, audioLevel: number, t: number): number => {
-			const normalized = Math.min(1, Math.max(0, audioLevel));
-			if (normalized < 0.01) return 0;
-
 			const centerDistance = Math.abs(index - (DOT_COUNT - 1) / 2);
-			const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
-			const phase = t / 80 + index * 0.9;
+			const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.5;
+			const phase = t / 150 + index * 0.8;
 			const wave = Math.sin(phase) * 0.5 + 0.5;
 
-			return normalized * MAX_BOUNCE * centerWeight * wave;
+			const normalized = Math.min(1, Math.max(0, audioLevel));
+			const baseBounce = MIN_BOUNCE * centerWeight * wave;
+			const audioBounce = normalized * (MAX_BOUNCE - MIN_BOUNCE) * centerWeight * wave;
+
+			return baseBounce + audioBounce;
 		};
 
-		test('should show all dots at zero offset when silent', () => {
+		test('should show base animation even when silent', () => {
 			const offsets: number[] = [];
 			for (let i = 0; i < DOT_COUNT; i++) {
 				offsets.push(getDotOffset(i, 0, 100));
 			}
 
-			const allZero = offsets.every((o) => o === 0);
-			expect(allZero).toBe(true);
-		});
-
-		test('should show wave pattern when audio is present', () => {
-			const offsets: number[] = [];
-			for (let i = 0; i < DOT_COUNT; i++) {
-				offsets.push(getDotOffset(i, 0.5, 100));
-			}
-
-			// Should have some non-zero offsets
+			// Should have some non-zero offsets even with zero audio
 			const hasNonZero = offsets.some((o) => o > 0);
 			expect(hasNonZero).toBe(true);
+		});
+
+		test('should show larger wave pattern when audio is present', () => {
+			const silentOffsets: number[] = [];
+			const audioOffsets: number[] = [];
+			for (let i = 0; i < DOT_COUNT; i++) {
+				silentOffsets.push(getDotOffset(i, 0, 100));
+				audioOffsets.push(getDotOffset(i, 0.5, 100));
+			}
+
+			// Audio offsets should be larger
+			const silentSum = silentOffsets.reduce((a, b) => a + b, 0);
+			const audioSum = audioOffsets.reduce((a, b) => a + b, 0);
+			expect(audioSum).toBeGreaterThan(silentSum);
 		});
 	});
 
 	describe('Animation timing', () => {
 		test('should produce smooth wave motion', () => {
 			const getDotOffset = (index: number, audioLevel: number, t: number): number => {
-				const normalized = Math.min(1, Math.max(0, audioLevel));
-				if (normalized < 0.01) return 0;
-
 				const centerDistance = Math.abs(index - (DOT_COUNT - 1) / 2);
-				const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.6;
-				const phase = t / 80 + index * 0.9;
+				const centerWeight = 1 - (centerDistance / ((DOT_COUNT - 1) / 2)) * 0.5;
+				const phase = t / 150 + index * 0.8;
 				const wave = Math.sin(phase) * 0.5 + 0.5;
 
-				return normalized * MAX_BOUNCE * centerWeight * wave;
+				const normalized = Math.min(1, Math.max(0, audioLevel));
+				const baseBounce = MIN_BOUNCE * centerWeight * wave;
+				const audioBounce = normalized * (MAX_BOUNCE - MIN_BOUNCE) * centerWeight * wave;
+
+				return baseBounce + audioBounce;
 			};
 
 			const level = 0.5;
