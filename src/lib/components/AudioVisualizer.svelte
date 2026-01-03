@@ -8,8 +8,8 @@
 	let { level = 0 }: Props = $props();
 
 	const dotCount = 7;
-	const maxBounce = 12;
-	const minBounce = 3; // Minimum bounce even without audio
+	const maxBounce = 16; // Increased for more visible audio response
+	const minBounce = 2; // Slight base bounce when no audio
 	let animationFrame: number | null = null;
 	let dotOffsets = $state<number[]>(Array(dotCount).fill(0));
 
@@ -19,6 +19,9 @@
 	// Sync the prop to our mutable variable
 	$effect(() => {
 		currentAudioLevel = level;
+		if (level > 0) {
+			console.log('[AudioVisualizer] Level prop updated:', level.toFixed(4));
+		}
 	});
 
 	// Create varied bounce offsets for each dot
@@ -31,10 +34,13 @@
 		const phase = t / 150 + index * 0.8;
 		const wave = Math.sin(phase) * 0.5 + 0.5;
 
+		// Scale up audio level - typical speech is 0.05-0.3, we want visible response
+		// Multiply by 3 to make 0.3 level reach full amplitude
+		const scaledLevel = Math.min(1, audioLevel * 3);
+
 		// Base animation + audio-responsive boost
-		const normalized = Math.min(1, Math.max(0, audioLevel));
 		const baseBounce = minBounce * centerWeight * wave;
-		const audioBounce = normalized * (maxBounce - minBounce) * centerWeight * wave;
+		const audioBounce = scaledLevel * (maxBounce - minBounce) * centerWeight * wave;
 
 		return baseBounce + audioBounce;
 	}

@@ -116,7 +116,9 @@ pub fn register_hotkey<R: Runtime>(
         .on_shortcut(shortcut, move |app, _shortcut, event| match event.state {
             ShortcutState::Pressed => {
                 println!("\n\n========== HOTKEY PRESSED ==========\n");
+                println!("[Hotkey] is_recording={}", is_recording.load(Ordering::SeqCst));
                 tracing::info!("========== HOTKEY PRESSED ==========");
+                tracing::info!("[Hotkey] is_recording={}", is_recording.load(Ordering::SeqCst));
                 if !is_recording.load(Ordering::SeqCst) {
                     tracing::info!("[Hotkey] Starting recording sequence...");
                     is_recording.store(true, Ordering::SeqCst);
@@ -165,6 +167,17 @@ pub fn register_hotkey<R: Runtime>(
                     match audio_state.send_command(AudioCommand::Start) {
                         Ok(AudioResponse::Ok) => {
                             tracing::info!("[Hotkey] Recording started successfully from hotkey");
+                            println!("[Hotkey] Recording started successfully");
+
+                            // Show the indicator window directly
+                            if let Some(window) = app.get_webview_window("recording-indicator") {
+                                tracing::info!("[Hotkey] Showing indicator window");
+                                let _ = window.show();
+                                let _ = window.set_focus();
+                            } else {
+                                tracing::warn!("[Hotkey] Indicator window not found!");
+                            }
+
                             // Start emitting audio levels
                             tracing::info!("[Hotkey] Starting level emitter...");
                             if let Err(e) = audio_state.start_level_emitter(app.clone()) {
@@ -177,6 +190,12 @@ pub fn register_hotkey<R: Runtime>(
                             let _ = app.emit("hotkey://recording-started", ());
                             let _ = app.emit("tray://update-recording-state", true);
                             let _ = app.emit("workflow://state-changed", "recording");
+
+                            // Also emit directly to the indicator window
+                            if let Some(window) = app.get_webview_window("recording-indicator") {
+                                let _ = window.emit("workflow://state-changed", "recording");
+                                let _ = window.emit("hotkey://recording-started", ());
+                            }
                         }
                         Ok(AudioResponse::Error(e)) => {
                             tracing::error!("Failed to start recording from hotkey: {}", e);
@@ -319,12 +338,17 @@ pub fn setup_hotkey<R: Runtime>(app: &AppHandle<R>, state: &HotkeyState) {
 
 /// Setup hotkey on app startup with a specific hotkey string
 pub fn setup_hotkey_with_key<R: Runtime>(app: &AppHandle<R>, state: &HotkeyState, hotkey: &str) {
+    println!("[Hotkey] Setting up hotkey: {}", hotkey);
+    tracing::info!("[Hotkey] Setting up hotkey: {}", hotkey);
+
     match register_hotkey(app, hotkey, state) {
         Ok(_) => {
-            tracing::info!("Push-to-talk hotkey enabled: {}", hotkey);
+            println!("[Hotkey] Push-to-talk hotkey REGISTERED: {}", hotkey);
+            tracing::info!("[Hotkey] Push-to-talk hotkey enabled: {}", hotkey);
             let _ = app.emit("hotkey://registered", hotkey);
         }
         Err(e) => {
+            println!("[Hotkey] FAILED to register hotkey '{}': {}", hotkey, e);
             tracing::warn!(
                 "Failed to register hotkey '{}': {}. Push-to-talk disabled, use tray menu instead.",
                 hotkey,

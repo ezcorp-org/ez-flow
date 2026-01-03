@@ -38,14 +38,15 @@
 		);
 
 		// Listen for audio level updates
+		console.log('[IndicatorPage] Setting up recording:level listener');
 		unlisteners.push(
 			await listen<number>('recording:level', (event) => {
-				audioLevel = event.payload;
-				if (event.payload > 0) {
-					console.log('[IndicatorPage] Received audio level:', event.payload.toFixed(4));
-				}
+				const newLevel = event.payload;
+				console.log('[IndicatorPage] Received recording:level event, payload:', newLevel);
+				audioLevel = newLevel;
 			})
 		);
+		console.log('[IndicatorPage] recording:level listener registered');
 
 		// Listen for escape key to cancel
 		const handleKeydown = async (e: KeyboardEvent) => {

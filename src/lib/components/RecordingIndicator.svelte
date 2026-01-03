@@ -12,6 +12,13 @@
 
 	let { isRecording = false, isTranscribing = false, audioLevel = 0, onClose }: Props = $props();
 
+	// Debug: log when audioLevel changes
+	$effect(() => {
+		if (audioLevel > 0) {
+			console.log('[RecordingIndicator] audioLevel prop:', audioLevel.toFixed(4));
+		}
+	});
+
 	let elapsed = $state(0);
 	let interval: ReturnType<typeof setInterval> | undefined;
 

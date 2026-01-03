@@ -118,8 +118,16 @@ fn position_near_cursor<R: Runtime>(window: &WebviewWindow<R>) -> Result<(), Str
 
 /// Emit audio level to the indicator window
 pub fn emit_audio_level<R: Runtime>(app: &AppHandle<R>, level: f32) -> Result<(), String> {
+    // Emit globally to all windows
     app.emit("recording:level", level)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // Also emit specifically to the indicator window for redundancy
+    if let Some(window) = app.get_webview_window("recording-indicator") {
+        let _ = window.emit("recording:level", level);
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
